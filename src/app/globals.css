@@ -35,6 +35,30 @@
   --outline: #8c7167;
   --outline-variant: #dfc0b4;
   
+  /* Spacing & Layout */
+  --spacing-margin-page: 24px;
+  --spacing-gutter-grid: 16px;
+  --spacing-bento-gap: 20px;
+  --spacing-section-padding: 80px;
+
+  /* Border Radius */
+  --rounded-sm: 0.5rem;
+  --rounded: 1rem;
+  --rounded-md: 1.5rem;
+  --rounded-lg: 2rem;
+  --rounded-xl: 3rem;
+  --rounded-full: 9999px;
+
+  /* Typography */
+  --font-display-lg: 700 48px/1.2 'Outfit', sans-serif;
+  --font-headline-lg: 600 32px/1.3 'Outfit', sans-serif;
+  --font-headline-lg-mobile: 600 28px/1.3 'Outfit', sans-serif;
+  --font-headline-md: 600 24px/1.4 'Lexend', sans-serif;
+  --font-body-lg: 400 18px/1.6 'Inter', sans-serif;
+  --font-body-md: 400 16px/1.6 'Inter', sans-serif;
+  --font-label-md: 500 14px/1.2 'Lexend', sans-serif;
+  --font-button-text: 600 16px/1 'Lexend', sans-serif;
+
   /* Mobile Layout Constants */
   --max-mobile-width: 480px;
 }
@@ -77,6 +101,8 @@ button, input, select, textarea, label, .btn, .nav-label, .badge, .chip, .label-
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* Ensure sub-pages can scroll */
+  contain: strict;
 }
 
 .grid-background {
@@ -201,7 +227,22 @@ button, input, select, textarea, label, .btn, .nav-label, .badge, .chip, .label-
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 .animate-float { animation: float 4s ease-in-out infinite; }
 .animate-pulse-scale { animation: pulseScale 3s ease-in-out infinite; }
 .animate-spin-slow { animation: rotateSlow 10s linear infinite; }
+
+/* Rounded Utilities */
+.rounded-full { border-radius: var(--rounded-full); }

@@ -1,493 +1,599 @@
 "use client";
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useAppSelector, useAppDispatch } from '@/application/hooks';
+import { setGMLoggedIn } from '@/application/store/slices/uiSlice';
 
-interface Card { 
-  id: number; 
-  title: string; 
-  desc: string; 
-  category: string; 
-  opinions?: string[];
+interface VotingOption {
+  id: string;
+  text: string;
+  votes: number;
+  supports?: string[];
 }
 
-const initialCards: Card[] = [
-  { 
-    id: 1, 
-    title: "Transition to a 4-day work week for the duration of Q3.", 
-    desc: "We can maintain output by reducing meeting times by 50% and implementing focus blocks.", 
-    category: "Operations",
-    opinions: [
-      "\"Lebih fokus, meeting jadi efisien dan langsung ke inti.\"",
-      "\"Meningkatkan keseimbangan hidup dan produktivitas tim.\""
-    ]
-  },
-  { 
-    id: 2, 
-    title: "Implement a new async communication policy across all teams.", 
-    desc: "Replace 30% of recurring sync meetings with documented async updates.", 
-    category: "Culture",
-    opinions: [
-      "\"Mengurangi gangguan saat sedang fokus bekerja.\"",
-      "\"Dokumentasi keputusan menjadi jauh lebih rapi dan terarah.\""
-    ]
-  },
-  { 
-    id: 3, 
-    title: "Launch a cross-team hackathon for internal tooling improvements.", 
-    desc: "Allocate one sprint per quarter to internal innovation, yielding 40% efficiency gains.", 
-    category: "Engineering",
-    opinions: [
-      "\"Kesempatan emas membersihkan hutang teknis (tech debt).\"",
-      "\"Mempererat kolaborasi antar divisi yang jarang berkomunikasi.\""
-    ]
-  },
-  { 
-    id: 4, 
-    title: "Introduce a monthly 'no-meeting' week for deep focus.", 
-    desc: "Clear all non-urgent recurring status checks for 5 consecutive days every month.", 
-    category: "Productivity",
-    opinions: [
-      "\"Waktu berkualitas tanpa interupsi untuk menyelesaikan proyek besar.\""
-    ]
-  },
-  { 
-    id: 5, 
-    title: "Standardize on Notion for all cross-departmental documentation.", 
-    desc: "Consolidate Google Docs, Confluence, and Notion into a single source of truth.", 
-    category: "Operations",
-    opinions: [
-      "\"Menghemat waktu pencarian dokumen hingga 2 jam per minggu.\""
-    ]
-  },
-  { 
-    id: 6, 
-    title: "Establish an annual remote-work stipend of $500/employee.", 
-    desc: "Help employees upgrade home offices to reduce ergonomic issues and boost overall daily morale.", 
-    category: "Culture",
-    opinions: [
-      "\"Sangat membantu membelikan kursi kerja ergonomis baru.\""
-    ]
-  },
-];
-
 export default function VoteTab() {
-  const [cards, setCards] = useState<Card[]>(initialCards);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [animatingOutId, setAnimatingOutId] = useState<number | null>(null);
-  const [voteDirection, setVoteDirection] = useState<'left' | 'right' | null>(null);
+  const isGMLoggedIn = useAppSelector((state) => state.ui.isGMLoggedIn);
+  const dispatch = useAppDispatch();
 
-  // States for ultimate choice locks
-  const [votedCard, setVotedCard] = useState<Card | null>(null);
-  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; card: Card | null }>({ isOpen: false, card: null });
+  // Local state for interactive mockup voting page
+  const [selectedOption, setSelectedOption] = useState<string | null>('opt-c');
+  const [timer, setTimer] = useState(28);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
-  // Refs for smooth carousel drag physics
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const dragOffset = useRef(0);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (animatingOutId || votedCard || !trackRef.current) return;
-    isDragging.current = true;
-    startX.current = e.clientX;
-    dragOffset.current = 0;
-
-    trackRef.current.setPointerCapture(e.pointerId);
-    trackRef.current.style.transition = 'none';
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging.current || !trackRef.current) return;
-    const deltaX = e.clientX - startX.current;
-    dragOffset.current = deltaX;
-
-    const currentPercentageOffset = (activeIndex * -85) + 7.5;
-    const dragPercentShift = (deltaX / window.innerWidth) * 85; 
-    const finalShift = currentPercentageOffset + dragPercentShift;
-
-    trackRef.current.style.transform = `translate3d(${finalShift}%, 0, 0)`;
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!isDragging.current || !trackRef.current) return;
-    isDragging.current = false;
-    trackRef.current.releasePointerCapture(e.pointerId);
-
-    const finalOffset = dragOffset.current;
-    trackRef.current.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
-    
-    if (finalOffset < -60 && activeIndex < cards.length - 1) {
-      setActiveIndex(prev => prev + 1);
-    } else if (finalOffset > 60 && activeIndex > 0) {
-      setActiveIndex(prev => prev - 1);
-    } else {
-      const currentPercentageOffset = (activeIndex * -85) + 7.5;
-      trackRef.current.style.transform = `translate3d(${currentPercentageOffset}%, 0, 0)`;
+  // Voting options mimicking /room/[code] vertical cards
+  const [votingOptions, setVotingOptions] = useState<VotingOption[]>([
+    {
+      id: 'opt-a',
+      text: 'Gagasan A: Penerapan sistem light mode baru',
+      votes: 12,
+      supports: ['Bagus sekali!', 'Setuju ide A', 'Sangat efisien']
+    },
+    {
+      id: 'opt-b',
+      text: 'Gagasan B: Desain whiteboard 2D interaktif',
+      votes: 8,
+      supports: ['Sangat interaktif!', 'Suka ide whiteboard']
+    },
+    {
+      id: 'opt-c',
+      text: 'Gagasan C: Optimasi integrasi Supabase Realtime',
+      votes: 15,
+      supports: ['Ini krusial untuk sinkronisasi data', 'Perlu performa cepat']
     }
-  };
+  ]);
 
-  const handleSkip = () => {
-    if (!cards.length || animatingOutId !== null) return;
-    const cardToSkip = cards[activeIndex];
-    
-    setAnimatingOutId(cardToSkip.id);
-    setVoteDirection('left');
+  // Keep current slide within bounds of voting options
+  useEffect(() => {
+    if (currentSlide >= votingOptions.length && votingOptions.length > 0) {
+      setCurrentSlide(votingOptions.length - 1);
+    }
+  }, [votingOptions, currentSlide]);
 
-    setTimeout(() => {
-      setCards(prev => {
-        const next = [...prev];
-        const removed = next.shift();
-        if (removed) next.push(removed);
-        return next;
+  // Local timer loop to make page feel dynamic and "live"
+  useEffect(() => {
+    if (!isGMLoggedIn) return;
+    const interval = setInterval(() => {
+      setTimer((prev) => {
+        if (prev <= 1) {
+          return 30; // reset
+        }
+        return prev - 1;
       });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isGMLoggedIn]);
 
-      setAnimatingOutId(null);
-      setVoteDirection(null);
-      
-      if (trackRef.current) {
-        trackRef.current.style.transition = 'none';
-      }
-    }, 350);
-  };
-
-  const handleVoteClick = () => {
-    if (!cards.length || animatingOutId !== null) return;
-    const cardToVote = cards[activeIndex];
-    setConfirmModal({ isOpen: true, card: cardToVote });
-  };
-
-  const handleConfirmVote = () => {
-    if (!confirmModal.card) return;
-    const card = confirmModal.card;
-    
-    setAnimatingOutId(card.id);
-    setVoteDirection('right');
-
-    setTimeout(() => {
-      setVotedCard(card);
-      setConfirmModal({ isOpen: false, card: null });
-      setAnimatingOutId(null);
-      setVoteDirection(null);
-    }, 450);
-  };
-
-  const total = initialCards.length;
-
-  // Ultimate Voted State screen (User can only vote 1 time overall)
-  // Re-designed with Apple HIG Dynamic Type sizes
-  if (votedCard) {
+  // NON-GM VIEW: Sleek Premium Copywriting & Call-To-Action (CTA)
+  if (!isGMLoggedIn) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', overflowY: 'auto', animation: 'fadeIn 0.4s ease-out', paddingBottom: '24px' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: 'var(--action-orange)', fontSize: '22px' }}>❧</span>
-            {/* HIG Title 3 - 20px Bold */}
-            <span style={{ color: 'var(--action-orange)', fontWeight: '800', fontSize: '20px', letterSpacing: '-0.3px' }}>VoxSilent</span>
-          </div>
-          {/* HIG Footnote - 13px Semibold */}
-          <span style={{ backgroundColor: 'rgba(190,242,100,0.2)', color: 'var(--tertiary)', border: '1.5px solid var(--tertiary)', fontWeight: '800', fontSize: '13px', padding: '5px 14px', borderRadius: '100px' }}>✓ VOTED</span>
-        </header>
-
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
-          <div style={{ fontSize: '56px', marginBottom: '8px', filter: 'drop-shadow(0 8px 16px rgba(190,242,100,0.25))' }}>🎉</div>
-          {/* HIG Title 2 - 22px Bold */}
-          <h3 style={{ fontWeight: '900', fontSize: '22px', color: 'var(--on-surface)', marginBottom: '8px', letterSpacing: '-0.5px' }}>Pilihan Anda Dikirim!</h3>
-          {/* HIG Footnote - 13.5px Regular */}
-          <p style={{ fontSize: '13.5px', color: 'var(--outline)', lineHeight: 1.5, padding: '0 16px' }}>
-            Terima kasih! Pilihan Anda dikirim secara <strong>anonim</strong> demi menjaga objektivitas dan keadilan keputusan bersama.
-          </p>
-        </div>
-
-        {/* Display ONLY the single chosen card */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100%',
+        color: '#131b2e',
+        fontFamily: 'Inter, sans-serif',
+        padding: '8px 4px 48px 4px',
+        animation: 'fadeIn 0.5s ease-out'
+      }}>
         <div style={{
-          position: 'relative', backgroundColor: 'white', borderRadius: '24px',
-          border: '2px solid var(--tertiary)', padding: '24px',
-          boxShadow: '0 16px 40px rgba(190,242,100,0.12)', margin: '16px 0'
+          backgroundColor: 'white',
+          borderRadius: '32px',
+          padding: '32px 24px',
+          border: '1px solid rgba(223, 192, 180, 0.4)',
+          boxShadow: '0 16px 48px rgba(107, 56, 212, 0.05)',
+          textAlign: 'center',
+          marginBottom: '24px',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
+          {/* Neon Accent Blur */}
           <div style={{
-            position: 'absolute', top: '16px', right: '16px',
-            backgroundColor: 'var(--tertiary)', color: 'var(--on-tertiary)',
-            padding: '5px 14px', borderRadius: '100px', fontSize: '11px', fontWeight: '800',
-            display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 4px 10px rgba(190,242,100,0.2)'
+            position: 'absolute',
+            top: '-20px',
+            left: '-20px',
+            width: '100px',
+            height: '100px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(255, 122, 61, 0.06)',
+            filter: 'blur(20px)',
+            pointerEvents: 'none'
+          }} />
+
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🗳️</div>
+          <h2 style={{
+            fontFamily: 'Outfit, sans-serif',
+            fontWeight: '900',
+            fontSize: '22px',
+            color: '#131b2e',
+            marginBottom: '8px',
+            letterSpacing: '-0.5px'
+          }}>Sistem Voting Anonim Pintar</h2>
+          <p style={{
+            fontSize: '13.5px',
+            color: '#584239',
+            lineHeight: 1.5,
+            marginBottom: '24px'
           }}>
-            👍 Voted Idea
-          </div>
+            Ambil keputusan strategis lebih cepat, objektif, dan adil. Sistem voting terenkripsi penuh VoxSilent memastikan pendapat setiap anggota didengar murni tanpa intervensi.
+          </p>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '12px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: 'rgba(107,56,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🧠</div>
-            <span style={{ backgroundColor: 'rgba(107,56,212,0.1)', color: 'var(--secondary)', padding: '3px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: '800' }}>{votedCard.category}</span>
-          </div>
-
-          {/* HIG Headline - 18px Bold */}
-          <h4 style={{ fontWeight: '800', fontSize: '18px', color: 'var(--on-surface)', marginBottom: '8px', lineHeight: 1.35, letterSpacing: '-0.3px' }}>{votedCard.title}</h4>
-          {/* HIG Footnote - 13.5px Regular */}
-          <p style={{ fontSize: '13.5px', color: 'var(--outline)', lineHeight: 1.5, marginBottom: '16px' }}>{votedCard.desc}</p>
-
-          {votedCard.opinions && votedCard.opinions.length > 0 && (
-            <div style={{ borderTop: '1px dashed rgba(223,192,180,0.3)', paddingTop: '12px' }}>
-              {/* HIG Caption 2 - 11px Semibold */}
-              <div style={{ fontSize: '11px', fontWeight: '900', color: 'var(--outline)', marginBottom: '8px', letterSpacing: '0.5px' }}>ARGUMENTASI PENDUKUNG:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {votedCard.opinions.map((op, idx) => (
-                  /* HIG Caption 1 - 12.5px */
-                  <div key={idx} style={{ fontSize: '12.5px', color: 'var(--on-surface-variant)', fontStyle: 'italic', backgroundColor: 'rgba(107,56,212,0.03)', padding: '8px 12px', borderRadius: '8px', borderLeft: '2.5px solid var(--secondary)' }}>
-                    💬 {op}
-                  </div>
-                ))}
+          {/* Premium Bullet Points */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            textAlign: 'left',
+            marginBottom: '28px',
+            backgroundColor: '#faf8ff',
+            borderRadius: '20px',
+            padding: '20px',
+            border: '1.5px solid rgba(139, 92, 246, 0.06)'
+          }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '18px' }}>🔒</span>
+              <div>
+                <strong style={{ fontSize: '13px', color: '#131b2e', fontFamily: 'Lexend, sans-serif' }}>Pilihan Enkripsi Anonim</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>Identitas Anda disembunyikan sepenuhnya di database, menjaga pilihan Anda bebas dari bias hierarki.</p>
               </div>
             </div>
-          )}
-        </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '18px' }}>📈</span>
+              <div>
+                <strong style={{ fontSize: '13px', color: '#131b2e', fontFamily: 'Lexend, sans-serif' }}>Visualisasi Hasil Live</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>Lihat grafik perolehan suara secara transparan dan real-time setelah sesi diakhiri oleh moderator.</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '18px' }}>🚀</span>
+              <div>
+                <strong style={{ fontSize: '13px', color: '#131b2e', fontFamily: 'Lexend, sans-serif' }}>Pengambilan Keputusan Demokratis</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>Eliminasi dominasi opini mayoritas kelompok (HIPPO effect) untuk mencapai mufakat adil.</p>
+              </div>
+            </div>
+          </div>
 
-        {/* Live Voting Session Status Drawer */}
-        <div style={{
-          backgroundColor: 'rgba(107,56,212,0.04)', borderRadius: '16px', border: '1px solid rgba(107,56,212,0.08)',
-          padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px'
+          {/* CTA Banner Card */}
+          <div style={{
+            backgroundColor: 'rgba(139, 92, 246, 0.05)',
+            border: '1.5px solid rgba(139, 92, 246, 0.15)',
+            borderRadius: '20px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <span style={{
+              fontSize: '13px',
+              fontWeight: '800',
+              color: '#8B5CF6',
+              fontFamily: 'Lexend, sans-serif',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>👑 Mulai Pengambilan Keputusan Adil</span>
+            <p style={{ margin: 0, fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>
+              Mulai memimpin rapat Anda sendiri sebagai Game Master (GM) untuk meluncurkan ruang voting dinamis sejenis ini.
+            </p>
+            <button
+              onClick={() => dispatch(setGMLoggedIn(true))}
+              className="btn-purple"
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '14px',
+                border: 'none',
+                fontWeight: '800',
+                fontSize: '13.5px',
+                fontFamily: 'Lexend, sans-serif',
+                cursor: 'pointer',
+                backgroundColor: '#8B5CF6',
+                color: 'white',
+                boxShadow: '0 4px 14px rgba(139, 92, 246, 0.2)',
+                transition: 'all 0.2s'
+              }}
+            >
+              Aktifkan Portal Game Master
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // GM VIEW: Stunning, dynamic horizontal voting carousel matching room/page.tsx exactly
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      minHeight: '100%',
+      color: '#131b2e',
+      fontFamily: 'Inter, sans-serif',
+      padding: '8px 4px 48px 4px',
+      animation: 'fadeIn 0.5s ease-out'
+    }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes slideInRight {
+          from { opacity: 0; transform: translateX(30px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .swipe-card {
+          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+          cursor: pointer;
+        }
+        .swipe-card.selected {
+          border: 3px solid #BEF264 !important;
+          box-shadow: 0 8px 24px rgba(190, 242, 100, 0.25) !important;
+        }
+        .btn-purple {
+          background-color: #8B5CF6;
+          color: white;
+          transition: all 0.2s;
+        }
+        .btn-purple:hover {
+          background-color: #7c3aed;
+          transform: translateY(-1px);
+        }
+      `}} />
+
+      {/* Timer Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px'
+      }}>
+        <span style={{
+          fontSize: '14px',
+          fontWeight: '700',
+          color: '#131b2e',
+          fontFamily: 'Lexend, sans-serif'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--outline)' }}>STATUS VOTING LIVE</span>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--secondary)' }}>8 / 10 Memilih</span>
-          </div>
-          <div style={{ width: '100%', height: '6px', backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: '100px', overflow: 'hidden' }}>
-            <div style={{ width: '80%', height: '100%', backgroundColor: 'var(--secondary)', borderRadius: '100px' }} />
-          </div>
-          {/* HIG Footnote - 12px */}
-          <span style={{ fontSize: '12px', color: 'var(--outline)', textAlign: 'center', marginTop: '4px' }}>
-            ⏳ Menunggu keputusan akhir difinalisasi oleh Moderator Rapat...
+          Pilih voting kamu (Demo GM)
+        </span>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          backgroundColor: timer <= 10 ? 'rgba(186, 26, 26, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+          padding: '8px 14px',
+          borderRadius: '100px'
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={timer <= 10 ? '#ba1a1a' : '#8B5CF6'} strokeWidth="2">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span style={{
+            fontSize: '16px',
+            fontWeight: '800',
+            color: timer <= 10 ? '#ba1a1a' : '#8B5CF6',
+            fontFamily: 'Outfit, sans-serif'
+          }}>
+            {timer}s
           </span>
         </div>
       </div>
-    );
-  }
 
-  if (!cards.length) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-        <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎉</div>
-        <h3 style={{ fontWeight: '800', fontSize: '22px', marginBottom: '8px' }}>Voting Selesai!</h3>
-        <p className="text-body">Semua gagasan telah diulas.</p>
-      </div>
-    );
-  }
-
-  const safeActiveIndex = Math.min(activeIndex, cards.length - 1);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: '100%', overflowY: 'auto', position: 'relative', paddingBottom: '32px' }}>
-      
-      {/* Confirmation Glassmorphism Modal */}
-      {confirmModal.isOpen && confirmModal.card && (
-        <div style={{
-          position: 'absolute', inset: 0, zIndex: 1000,
-          backgroundColor: 'rgba(15, 12, 26, 0.4)', backdropFilter: 'blur(8px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
-          animation: 'fadeIn 0.25s ease-out'
+      {/* Question Reminder */}
+      <div style={{
+        backgroundColor: '#eaedff',
+        padding: '16px',
+        borderRadius: '16px',
+        marginBottom: '20px'
+      }}>
+        <span style={{
+          fontSize: '13px',
+          color: '#584239',
+          fontFamily: 'Inter, sans-serif',
+          fontWeight: '700'
         }}>
-          <div style={{
-            backgroundColor: 'white', borderRadius: '24px', padding: '24px',
-            boxShadow: '0 24px 60px rgba(107, 56, 212, 0.16)', border: '1px solid rgba(107, 56, 212, 0.08)',
-            width: '100%', maxWidth: '300px', display: 'flex', flexDirection: 'column', gap: '14px'
-          }}>
-            <div style={{ fontSize: '36px', textAlign: 'center' }}>🗳️</div>
-            {/* HIG Title 3 - 18px Bold */}
-            <h4 style={{ fontWeight: '900', fontSize: '18px', textAlign: 'center', color: 'var(--on-surface)' }}>Konfirmasi Pilihan</h4>
-            {/* HIG Footnote - 13px */}
-            <p style={{ fontSize: '13px', color: 'var(--outline)', textAlign: 'center', lineHeight: 1.5 }}>
-              Apakah Anda yakin ingin memberikan suara Anda untuk gagasan:<br />
-              <strong style={{ color: 'var(--secondary)', display: 'block', margin: '8px 0', fontSize: '13.5px' }}>"{confirmModal.card.title}"</strong>
-              Pilihan Anda bersifat <strong>anonim</strong> dan <strong>final</strong> (hanya dapat memilih 1 kali).
-            </p>
-            <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-              <button
-                onClick={() => setConfirmModal({ isOpen: false, card: null })}
-                style={{
-                  flex: 1, padding: '10px 14px', borderRadius: '100px', border: '1px solid rgba(0,0,0,0.08)',
-                  backgroundColor: 'rgba(0,0,0,0.02)', color: 'var(--outline)', fontSize: '13px', fontWeight: '800',
-                  cursor: 'pointer', transition: 'all 0.2s'
-                }}
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleConfirmVote}
-                style={{
-                  flex: 1, padding: '10px 14px', borderRadius: '100px', border: 'none',
-                  backgroundColor: 'var(--tertiary)', color: 'var(--on-tertiary)', fontSize: '13px', fontWeight: '800',
-                  cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(190,242,100,0.3)'
-                }}
-              >
-                Ya, Pilih
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: 'var(--action-orange)', fontSize: '22px' }}>❧</span>
-          {/* HIG Title 3 - 20px Bold */}
-          <span style={{ color: 'var(--action-orange)', fontWeight: '800', fontSize: '20px', letterSpacing: '-0.3px' }}>VoxSilent</span>
-        </div>
-        {/* HIG Footnote - 13px */}
-        <span style={{ backgroundColor: 'rgba(255,122,61,0.1)', color: 'var(--action-orange)', fontWeight: '800', fontSize: '13px', padding: '5px 14px', borderRadius: '100px' }}>ID: 284-901</span>
-      </header>
-
-      {/* Topic Bar */}
-      <div style={{ backgroundColor: 'rgba(255,122,61,0.06)', border: '1px solid rgba(255,122,61,0.15)', borderRadius: '12px', padding: '8px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontSize: '14px' }}>💬</span>
-        {/* HIG Footnote - 13px Semibold */}
-        <span style={{ fontWeight: '800', fontSize: '13px', color: 'var(--on-surface)' }}>Topic: Q3 Operational Improvements</span>
+          Topic: Optimasi Performa Infrastruktur Q4
+        </span>
       </div>
 
-      {/* Option B: Direct Navigation Pills */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '12px', scrollbarWidth: 'none' }}>
-        {cards.map((card, idx) => (
-          <button
-            key={card.id}
-            onClick={() => setActiveIndex(idx)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '100px',
-              /* HIG Footnote - 13px Bold */
-              border: safeActiveIndex === idx ? '1.5px solid var(--action-orange)' : '1px solid rgba(223,192,180,0.3)',
-              backgroundColor: safeActiveIndex === idx ? 'var(--action-orange)' : 'white',
-              color: safeActiveIndex === idx ? 'white' : 'var(--outline)',
-              fontSize: '13px',
-              fontWeight: '800',
-              whiteSpace: 'nowrap',
-              cursor: 'pointer',
-              boxShadow: safeActiveIndex === idx ? '0 4px 10px rgba(255,122,61,0.2)' : 'none',
-              transition: 'all 0.35s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}
-          >
-            Ide {idx + 1}
-          </button>
-        ))}
-      </div>
+      {/* 3D Horizontal Carousel Card Deck */}
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        height: '370px',
+        margin: '10px 0 15px 0',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden'
+      }}>
+        {/* Track / Deck */}
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          height: '310px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          {votingOptions.map((option, index) => {
+            const offset = index - currentSlide;
+            const isActive = offset === 0;
+            const isVisible = Math.abs(offset) <= 1;
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', padding: '0 4px' }}>
-        {/* HIG Footnote - 13px Semibold */}
-        <span style={{ fontWeight: '800', fontSize: '13px', color: 'var(--on-surface-variant)' }}>Gagasan ke-{safeActiveIndex + 1} dari {cards.length}</span>
-        <span style={{ fontWeight: '800', fontSize: '13px', color: 'var(--action-orange)' }}>🔥 Hot Topic</span>
-      </div>
-
-      {/* Option A: Peek-a-boo Carousel Viewport */}
-      <div style={{ flex: 1, position: 'relative', width: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', padding: '12px 0' }}>
-        <div
-          ref={trackRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          style={{
-            display: 'flex',
-            width: '100%',
-            height: 'auto',
-            transform: `translate3d(calc(-${safeActiveIndex} * 85% + 7.5%), 0, 0)`,
-            transition: isDragging.current ? 'none' : 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
-            cursor: isDragging.current ? 'grabbing' : 'grab',
-            touchAction: 'none',
-            willChange: 'transform'
-          }}
-        >
-          {cards.map((card, idx) => {
-            const isActive = safeActiveIndex === idx;
-            const isVotingOut = animatingOutId === card.id;
-
-            let transformStyle = isActive ? 'scale(1)' : 'scale(0.94)';
-            let opacityStyle = isActive ? 1 : 0.55;
-
-            if (isVotingOut) {
-              const tx = voteDirection === 'right' ? 500 : -500;
-              const rot = voteDirection === 'right' ? 20 : -20;
-              transformStyle = `translate3d(${tx}px, 0, 0) rotate(${rot}deg) scale(0.9)`;
-              opacityStyle = 0;
-            }
+            if (!isVisible) return null;
 
             return (
               <div
-                key={card.id}
-                style={{
-                  width: '85%',
-                  padding: '0 8px',
-                  flexShrink: 0,
-                  boxSizing: 'border-box',
-                  transition: isDragging.current ? 'opacity 0.3s' : 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s',
-                  transform: transformStyle,
-                  opacity: opacityStyle,
-                  willChange: 'transform, opacity'
+                key={option.id}
+                onClick={() => {
+                  if (!isActive) {
+                    setCurrentSlide(index);
+                  } else if (!hasVoted) {
+                    setSelectedOption(option.id);
+                  }
                 }}
-              >
-                {/* Visual Card Container */}
-                <div style={{
-                  minHeight: '360px',
-                  height: 'auto',
+                className={`swipe-card ${selectedOption === option.id ? 'selected' : ''}`}
+                style={{
+                  position: 'absolute',
+                  width: '270px',
+                  height: '290px',
                   backgroundColor: 'white',
                   borderRadius: '24px',
-                  border: isActive ? '1.5px solid rgba(107,56,212,0.15)' : '1px solid rgba(223,192,180,0.3)',
-                  boxShadow: isActive ? '0 16px 40px rgba(107, 56, 212, 0.08)' : '0 4px 12px rgba(0,0,0,0.02)',
-                  padding: '20px 24px',
+                  padding: '24px',
+                  border: selectedOption === option.id ? '3px solid #BEF264' : '1.5px solid rgba(223, 192, 180, 0.4)',
+                  boxShadow: selectedOption === option.id 
+                    ? '0 12px 32px rgba(190, 242, 100, 0.3)' 
+                    : isActive 
+                      ? '0 10px 25px rgba(139, 92, 246, 0.08)' 
+                      : '0 4px 12px rgba(0,0,0,0.03)',
                   display: 'flex',
                   flexDirection: 'column',
-                  position: 'relative',
+                  gap: '12px',
+                  transform: `translateX(${offset * 105}%) scale(${isActive ? 1 : 0.88})`,
+                  opacity: isActive ? 1 : 0.4,
+                  zIndex: isActive ? 10 : 5 - Math.abs(offset),
+                  transition: 'all 0.4s cubic-bezier(0.25, 1, 0.5, 1)',
+                  cursor: isActive ? 'default' : 'pointer',
+                  pointerEvents: 'auto',
                   overflow: 'hidden'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: 'rgba(107,56,212,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>🧠</div>
-                    <span style={{ backgroundColor: 'rgba(107,56,212,0.1)', color: 'var(--secondary)', padding: '4px 10px', borderRadius: '100px', fontSize: '11px', fontWeight: '800' }}>{card.category}</span>
+                }}
+              >
+                {/* Card Header: Option Tag & Selection Icon */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    backgroundColor: selectedOption === option.id ? '#BEF264' : '#eaedff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: '800',
+                    fontSize: '16px',
+                    color: selectedOption === option.id ? '#293e00' : '#8B5CF6',
+                    fontFamily: 'Outfit, sans-serif'
+                  }}>
+                    {String.fromCharCode(65 + index)}
                   </div>
-                  
-                  {/* HIG Headline - 18px Bold */}
-                  <h3 style={{ fontWeight: '800', fontSize: '18px', lineHeight: 1.35, marginBottom: '6px', color: 'var(--on-surface)', letterSpacing: '-0.3px' }}>{card.title}</h3>
-                  {/* HIG Footnote - 13.5px Regular */}
-                  <p style={{ fontSize: '13.5px', color: 'var(--outline)', lineHeight: 1.45, marginBottom: '10px' }}>{card.desc}</p>
-                  
-                  {/* Embedded opinions list inside Card - Expands downwards naturally */}
-                  {card.opinions && card.opinions.length > 0 && (
-                    <div style={{ borderTop: '1px dashed rgba(223,192,180,0.25)', paddingTop: '8.5px', marginTop: '12px' }}>
-                      {/* HIG Caption 2 - 11px Semibold */}
-                      <div style={{ fontSize: '11px', fontWeight: '900', color: 'var(--outline)', marginBottom: '8px', letterSpacing: '0.5px' }}>PENDAPAT REKAN:</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {card.opinions.map((op, idx) => (
-                          /* HIG Caption 1 - 12.5px */
-                          <div key={idx} style={{ fontSize: '12.5px', color: 'var(--on-surface-variant)', fontStyle: 'italic', backgroundColor: 'rgba(107,56,212,0.03)', padding: '8px 12.5px', borderRadius: '10px', borderLeft: '2.5px solid var(--secondary)', lineHeight: 1.4 }}>
-                            💬 {op}
-                          </div>
+                  {selectedOption === option.id && (
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: '#BEF264',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      animation: 'scaleIn 0.2s ease-out'
+                    }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#293e00" strokeWidth="3">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                {/* Option Text */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
+                  <span style={{
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: '#131b2e',
+                    fontFamily: 'Outfit, sans-serif',
+                    lineHeight: '1.4'
+                  }}>
+                    {option.text}
+                  </span>
+
+                  {/* Support comments inside card in speech bubble */}
+                  {option.supports && option.supports.length > 0 && (
+                    <div style={{
+                      marginTop: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      padding: '10px 12px',
+                      backgroundColor: '#f5f3ff',
+                      borderRadius: '12px',
+                      border: '1.5px solid rgba(139, 92, 246, 0.05)'
+                    }}>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: '800',
+                        color: '#8B5CF6',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.5px'
+                      }}>
+                        💬 Pendukung ({option.supports.length}):
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '55px', overflowY: 'auto' }}>
+                        {option.supports.map((sup, idx) => (
+                          <span key={idx} style={{
+                            fontSize: '11.5px',
+                            fontStyle: 'italic',
+                            color: '#584239',
+                            fontFamily: 'Inter, sans-serif',
+                            lineHeight: '1.3'
+                          }}>
+                            &quot;{sup}&quot;
+                          </span>
                         ))}
                       </div>
                     </div>
                   )}
-
-                  {/* HIG Caption 2 - 11px Bold */}
-                  <div style={{ borderTop: '1px solid rgba(223,192,180,0.15)', paddingTop: '8px', marginTop: '6px', textAlign: 'center', color: 'var(--outline)', fontSize: '11px', letterSpacing: '0.5px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                    SWIPE KIRI / KANAN UNTUK MEMBACA
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  </div>
                 </div>
               </div>
             );
           })}
+
+          {/* Floating Navigation Controls */}
+          {votingOptions.length > 1 && (
+            <>
+              {/* Left Arrow */}
+              <button
+                onClick={() => setCurrentSlide(prev => Math.max(0, prev - 1))}
+                disabled={currentSlide === 0}
+                style={{
+                  position: 'absolute',
+                  left: '4px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'white',
+                  border: '1.5px solid rgba(139, 92, 246, 0.15)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: currentSlide === 0 ? 'not-allowed' : 'pointer',
+                  opacity: currentSlide === 0 ? 0.3 : 0.9,
+                  zIndex: 20,
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+
+              {/* Right Arrow */}
+              <button
+                onClick={() => setCurrentSlide(prev => Math.min(votingOptions.length - 1, prev + 1))}
+                disabled={currentSlide === votingOptions.length - 1}
+                style={{
+                  position: 'absolute',
+                  right: '4px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'white',
+                  border: '1.5px solid rgba(139, 92, 246, 0.15)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: currentSlide === votingOptions.length - 1 ? 'not-allowed' : 'pointer',
+                  opacity: currentSlide === votingOptions.length - 1 ? 0.3 : 0.9,
+                  zIndex: 20,
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
+
+        {/* Slide Indicator Dots */}
+        {votingOptions.length > 1 && (
+          <div style={{
+            display: 'flex',
+            gap: '6px',
+            marginTop: '12px',
+            zIndex: 20
+          }}>
+            {votingOptions.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentSlide(index)}
+                style={{
+                  width: index === currentSlide ? '18px' : '6px',
+                  height: '6px',
+                  borderRadius: '100px',
+                  backgroundColor: index === currentSlide ? '#8B5CF6' : 'rgba(139, 92, 246, 0.2)',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  outline: 'none'
+                }}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Floating Skip and Vote Controls */}
-      <div style={{ display: 'flex', gap: '32px', justifyContent: 'center', marginTop: '10px', marginBottom: '8px' }}>
-        <button onClick={handleSkip}
-          style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(240,240,245,0.9)', border: '1px solid rgba(0,0,0,0.05)', fontSize: '18px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', transition: 'transform 0.2s, background-color 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--outline)' }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-          onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.92)')}>✕</button>
-        
-        <button onClick={handleVoteClick}
-          style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(190,242,100,0.25)', border: '2px solid var(--tertiary)', fontSize: '18px', cursor: 'pointer', boxShadow: '0 6px 16px rgba(71,104,0,0.15)', transition: 'transform 0.2s, background-color 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.08)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
-          onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.92)')}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--tertiary)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
-          </svg>
-        </button>
+      {/* Submit / Status Button */}
+      <button
+        onClick={() => {
+          if (selectedOption) {
+            setHasVoted(true);
+            // Simulate adding a vote locally
+            setVotingOptions((prev) =>
+              prev.map((o) => (o.id === selectedOption ? { ...o, votes: o.votes + 1 } : o))
+            );
+          }
+        }}
+        disabled={hasVoted || !selectedOption}
+        className="btn-purple"
+        style={{
+          width: '100%',
+          padding: '16px',
+          borderRadius: '16px',
+          border: 'none',
+          fontWeight: '800',
+          fontSize: '14.5px',
+          fontFamily: 'Lexend, sans-serif',
+          cursor: 'pointer',
+          backgroundColor: '#8B5CF6',
+          color: 'white',
+          boxShadow: '0 6px 20px rgba(139, 92, 246, 0.2)',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px'
+        }}
+      >
+        {hasVoted ? (
+          <>
+            <span>✓</span>
+            <span>Pilihan Anda Terkirim (Menunggu GM)</span>
+          </>
+        ) : (
+          <>
+            <span>🗳️</span>
+            <span>Kirim Suara Anda secara Anonim</span>
+          </>
+        )}
+      </button>
+
+      {/* Hint */}
+      <div style={{
+        textAlign: 'center',
+        color: '#584239',
+        fontSize: '11px',
+        fontFamily: 'Inter, sans-serif',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+        marginTop: '15px'
+      }}>
+        <span>Geser kartu atau klik tombol panah ◀ ▶ untuk melihat gagasan lainnya</span>
       </div>
     </div>
   );

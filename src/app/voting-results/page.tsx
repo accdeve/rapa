@@ -1,487 +1,762 @@
-"use client";
-import React, { useEffect, useState } from 'react';
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAppDispatch } from '../../lib/hooks';
-import { setActiveTab } from '../../lib/features/ui/uiSlice';
-import SubPageShell from '../../components/layout/SubPageShell';
+import { useAppDispatch } from '@/application/hooks';
+import { setActiveTab } from '@/application/store/slices/uiSlice';
+
+interface VoteOption {
+  id: string;
+  text: string;
+  votes: number;
+  percentage: number;
+}
+
+interface Decision {
+  id: string;
+  text: string;
+  category: string;
+}
+
+interface Participant {
+  id: string;
+  avatarColor: string;
+  contributionScore: number;
+}
 
 export default function VotingResultsPage() {
   const dispatch = useAppDispatch();
-  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [animatedBars, setAnimatedBars] = useState(false);
 
-  // Automatically illuminate the 'Vote' bottom tab on page mount to match screen.png
   useEffect(() => {
     dispatch(setActiveTab(2));
+    setTimeout(() => setAnimatedBars(true), 300);
   }, [dispatch]);
 
+  const mockWinningOptions: VoteOption[] = [
+    { id: '1', text: 'Remote-first hybrid model', votes: 847, percentage: 72 },
+    { id: '2', text: 'Flexible office days (Tue-Thu)', votes: 623, percentage: 53 },
+    { id: '3', text: 'Quarterly team offsites', votes: 512, percentage: 44 },
+  ];
+
+  const mockDecisions: Decision[] = [
+    { id: 'd1', text: 'All-hands meeting moved to async format starting Q2', category: 'Communication' },
+    { id: 'd2', text: 'New onboarding process approved with 2-week mentorship period', category: 'HR Policy' },
+    { id: 'd3', text: 'Budget allocation: 60% remote tools, 40% in-person events', category: 'Budget' },
+  ];
+
+  const mockMVP: Participant = {
+    id: 'mvp',
+    avatarColor: '#8B5CF6',
+    contributionScore: 94,
+  };
+
+  const totalParticipants = 1247;
+
+  const handleCopy = async (decision: Decision) => {
+    try {
+      await navigator.clipboard.writeText(decision.text);
+      setCopiedId(decision.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy');
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = `🗳️ VoxSilent Meeting Results 🏆\n\n📊 Winning Decisions:\n${mockWinningOptions.map((opt, i) => `${i + 1}. ${opt.text} (${opt.percentage}%)`).join('\n')}\n\n👑 The Silent Hero MVP Score: ${mockMVP.contributionScore}\n\n/shared via VoxSilent`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  const handleCopyAll = async () => {
+    const text = `🗳️ VoxSilent Meeting Results 🏆\n\n📊 Winning Decisions:\n${mockWinningOptions.map((opt, i) => `${i + 1}. ${opt.text} (${opt.percentage}%)`).join('\n')}\n\n📋 Key Decisions:\n${mockDecisions.map((d, i) => `${i + 1}. [${d.category}] ${d.text}`).join('\n')}\n\n👑 MVP Score: ${mockMVP.contributionScore}\n👥 Total Participants: ${totalParticipants}\n\n/shared via VoxSilent`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId('all');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy');
+    }
+  };
+
   return (
-    <SubPageShell>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: '#faf8ff',
+        fontFamily: 'Inter, sans-serif',
+        padding: '24px',
+        paddingBottom: '100px',
+      }}
+    >
       <style dangerouslySetInnerHTML={{ __html: `
         .btn-export:hover {
-          background-color: #7c3aed !important;
-          transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(139, 92, 246, 0.25) !important;
+          transform: scale(1.02);
+          box-shadow: 0 6px 16px rgba(37,211,102,0.4) !important;
         }
         .btn-export:active {
-          transform: translateY(0);
+          transform: scale(1);
         }
-        .btn-back:hover {
-          border-color: #8B5CF6 !important;
-          color: #8B5CF6 !important;
-          background-color: rgba(139, 92, 246, 0.02) !important;
+        .btn-copy:hover {
+          transform: scale(1.02);
+          box-shadow: 0 6px 16px rgba(139,92,246,0.4) !important;
         }
-        .stat-card-zoom {
-          transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        .btn-copy:active {
+          transform: scale(1);
         }
-        .stat-card-zoom:hover {
+        .card-hover:hover {
           transform: translateY(-2px);
+        }
+        .bar-animate {
+          transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
       `}} />
 
-      {/* HEADER SECTION - Styled exactly matching screen.png */}
-      <header style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px',
-        position: 'relative',
-        zIndex: 10
-      }}>
-        {/* Left: Logo (three interconnected orange dots) + VoxSilent Text */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="7" cy="14" r="5.2" fill="#FF7A3D" />
-            <circle cx="16" cy="9" r="5.2" fill="#FF7A3D" />
-            <circle cx="15.5" cy="15.5" r="4.8" fill="#FF7A3D" />
-          </svg>
-          <span style={{ 
-            color: '#FF7A3D', 
-            fontWeight: '800', 
-            fontSize: '20px', 
-            letterSpacing: '-0.5px', 
-            fontFamily: 'Outfit, sans-serif'
-          }}>
-            VoxSilent
-          </span>
-        </div>
-
-        {/* Right: Static ID: 284-901 in Orange */}
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginBottom: '24px',
+        }}
+      >
+        <Link
+          href="/"
+          style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '12px',
+            background: '#eaedff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            textDecoration: 'none',
+            color: '#131b2e',
+            fontSize: '20px',
+          }}
+        >
+          ←
+        </Link>
         <div>
-          <span style={{
-            color: '#FF7A3D',
-            fontWeight: '800',
-            fontSize: '17px',
-            fontFamily: 'Outfit, sans-serif',
-            letterSpacing: '-0.3px'
-          }}>
-            ID: 284-901
-          </span>
+          <h1
+            style={{
+              fontFamily: 'Outfit, sans-serif',
+              fontSize: '24px',
+              fontWeight: '600',
+              color: '#131b2e',
+              margin: 0,
+            }}
+          >
+            Voting Results
+          </h1>
+          <p
+            style={{
+              fontSize: '14px',
+              color: '#584239',
+              margin: 0,
+              fontFamily: 'Lexend, sans-serif',
+            }}
+          >
+            Meeting #2847 • Final Summary
+          </p>
         </div>
       </header>
 
-      {/* RESULTS OVERVIEW SECTION */}
-      <section style={{ marginBottom: '32px' }}>
-        <h2 style={{
-          fontSize: '24px',
-          fontWeight: '800',
-          color: '#131b2e',
-          fontFamily: 'Outfit, sans-serif',
-          letterSpacing: '-0.5px',
-          marginBottom: '16px'
-        }}>
-          Results Overview
-        </h2>
-
-        {/* Grid layout of 3 stats cards */}
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {/* Card 1 (Large Left Card) */}
-          <div 
-            className="stat-card-zoom"
+      <div
+        style={{
+          display: 'grid',
+          gap: '20px',
+          gridTemplateColumns: '1fr',
+        }}
+      >
+        {/* Winner Section - Full Width */}
+        <div
+          className="card-hover"
+          style={{
+            background: `linear-gradient(135deg, #BEF264 0%, #a4d64c 100%)`,
+            borderRadius: '24px',
+            padding: '24px',
+            position: 'relative',
+            overflow: 'hidden',
+            transition: 'transform 0.2s ease',
+          }}
+        >
+          <div
             style={{
-              flex: 1.1,
-              backgroundColor: '#eaedff',
-              borderRadius: '28px',
-              padding: '24px 16px',
-              textAlign: 'center',
+              position: 'absolute',
+              top: '-20px',
+              right: '-20px',
+              width: '120px',
+              height: '120px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.3)',
+            }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '-30px',
+              left: '-30px',
+              width: '80px',
+              height: '80px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.2)',
+            }}
+          />
+          
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <p
+              style={{
+                fontFamily: 'Lexend, sans-serif',
+                fontSize: '14px',
+                fontWeight: '500',
+                color: '#293e00',
+                margin: '0 0 4px 0',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              Top Decision
+            </p>
+            <h2
+              style={{
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '28px',
+                fontWeight: '700',
+                color: '#131f00',
+                margin: '0 0 16px 0',
+                lineHeight: '1.3',
+              }}
+            >
+              {mockWinningOptions[0].text}
+            </h2>
+            
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '16px',
+              }}
+            >
+              <div
+                style={{
+                  background: '#131f00',
+                  borderRadius: '12px',
+                  padding: '8px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🏆</span>
+                <span
+                  style={{
+                    fontFamily: 'Outfit, sans-serif',
+                    fontSize: '32px',
+                    fontWeight: '700',
+                    color: '#BEF264',
+                  }}
+                >
+                  {mockWinningOptions[0].percentage}%
+                </span>
+              </div>
+              <span
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '16px',
+                  color: '#293e00',
+                }}
+              >
+                {mockWinningOptions[0].votes} votes
+              </span>
+            </div>
+
+            {/* Vote Distribution Bars */}
+            <div style={{ display: 'grid', gap: '12px' }}>
+              {mockWinningOptions.map((option, index) => (
+                <div key={option.id}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '4px',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: 'Inter, sans-serif',
+                        fontSize: '14px',
+                        color: '#293e00',
+                        maxWidth: '70%',
+                      }}
+                    >
+                      {option.text}
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'Lexend, sans-serif',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#293e00',
+                      }}
+                    >
+                      {option.percentage}%
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: '8px',
+                      background: 'rgba(0,0,0,0.15)',
+                      borderRadius: '4px',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      className="bar-animate"
+                      style={{
+                        height: '100%',
+                        width: animatedBars ? `${option.percentage}%` : '0%',
+                        background: index === 0 ? '#131f00' : 'rgba(0,0,0,0.4)',
+                        borderRadius: '4px',
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* MVP Section - Full Width */}
+        <div
+          className="card-hover"
+          style={{
+            background: '#0F172A',
+            borderRadius: '24px',
+            padding: '24px',
+            position: 'relative',
+            overflow: 'hidden',
+            transition: 'transform 0.2s ease',
+          }}
+        >
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '200px',
+              height: '200px',
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, rgba(139,92,246,0.3) 0%, transparent 70%)',
+            }}
+          />
+          
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 1,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center'
+              textAlign: 'center',
             }}
           >
-            {/* Custom Orange ballot box icon SVG */}
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: '10px' }}>
-              <path d="M4 11H20L18 20H6L4 11Z" stroke="#FF7A3D" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
-              <path d="M9 5H15L16 11H8L9 5Z" stroke="#FF7A3D" strokeWidth="2.5" strokeLinejoin="round" fill="none" />
-              <circle cx="12" cy="15" r="2.2" fill="#FF7A3D" />
-            </svg>
-            
-            <div style={{ 
-              fontSize: '38px', 
-              fontWeight: '900', 
-              color: '#131b2e', 
-              fontFamily: 'Outfit, sans-serif',
-              lineHeight: 1
-            }}>
-              156
-            </div>
-            
-            <div style={{ 
-              fontSize: '13px', 
-              color: '#584239', 
-              fontWeight: '700',
-              fontFamily: 'Inter, sans-serif',
-              marginTop: '4px'
-            }}>
-              Total Votes
-            </div>
-          </div>
-
-          {/* Right Column containing 2 horizontal cards */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {/* Card 2 (Top Right Mint-Green Card) */}
-            <div 
-              className="stat-card-zoom"
-              style={{
-                backgroundColor: '#edf5f1',
-                borderRadius: '24px',
-                padding: '16px',
-                textAlign: 'center'
-              }}
-            >
-              <div style={{ 
-                fontSize: '25px', 
-                fontWeight: '900', 
-                color: '#476800', 
-                fontFamily: 'Outfit, sans-serif',
-                lineHeight: 1
-              }}>
-                78%
-              </div>
+            <div style={{ position: 'relative', marginBottom: '16px' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-20px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  fontSize: '32px',
+                }}
+              >
+                👑
+              </span>
               
-              <div style={{ 
-                fontSize: '12px', 
-                color: '#584239', 
-                fontWeight: '700',
-                fontFamily: 'Inter, sans-serif',
-                marginTop: '4px'
-              }}>
-                Contribute
+              {/* 3D Blob Avatar */}
+              <div
+                style={{
+                  width: '100px',
+                  height: '100px',
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${mockMVP.avatarColor} 0%, #6366f1 100%)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 8px 32px rgba(139,92,246,0.4)',
+                  position: 'relative',
+                }}
+              >
+                <svg width="50" height="50" viewBox="0 0 50 50" fill="none">
+                  <ellipse cx="25" cy="28" rx="18" ry="16" fill="rgba(255,255,255,0.9)" />
+                  <circle cx="18" cy="25" r="3" fill="#131b2e" />
+                  <circle cx="32" cy="25" r="3" fill="#131b2e" />
+                  <path d="M18 35 Q25 40 32 35" stroke="#131b2e" strokeWidth="2" strokeLinecap="round" fill="none" />
+                </svg>
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '-4px',
+                    right: '-4px',
+                    background: '#BEF264',
+                    borderRadius: '50%',
+                    width: '28px',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    color: '#131f00',
+                    fontFamily: 'Outfit, sans-serif',
+                  }}
+                >
+                  ✓
+                </div>
               </div>
             </div>
 
-            {/* Card 3 (Bottom Right Lavender Card) */}
-            <div 
-              className="stat-card-zoom"
+            <h3
               style={{
-                backgroundColor: '#f3f0ff',
-                borderRadius: '24px',
-                padding: '16px',
-                textAlign: 'center'
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#ffffff',
+                margin: '0 0 4px 0',
               }}
             >
-              <div style={{ 
-                fontSize: '25px', 
-                fontWeight: '900', 
-                color: '#8B5CF6', 
-                fontFamily: 'Outfit, sans-serif',
-                lineHeight: 1
-              }}>
-                45m
-              </div>
-              
-              <div style={{ 
-                fontSize: '12px', 
-                color: '#584239', 
-                fontWeight: '700',
+              The Silent Hero
+            </h3>
+            <p
+              style={{
                 fontFamily: 'Inter, sans-serif',
-                marginTop: '4px'
-              }}>
-                Time Saved
+                fontSize: '14px',
+                color: 'rgba(255,255,255,0.6)',
+                margin: '0 0 16px 0',
+              }}
+            >
+              Top contributor this session
+            </p>
+
+            <div
+              style={{
+                background: 'rgba(190,242,100,0.15)',
+                borderRadius: '16px',
+                padding: '16px 24px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'Outfit, sans-serif',
+                  fontSize: '36px',
+                  fontWeight: '700',
+                  color: '#BEF264',
+                }}
+              >
+                {mockMVP.contributionScore}
+              </span>
+              <div style={{ textAlign: 'left' }}>
+                <p
+                  style={{
+                    fontFamily: 'Lexend, sans-serif',
+                    fontSize: '12px',
+                    color: 'rgba(255,255,255,0.6)',
+                    margin: 0,
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  MVP Score
+                </p>
+                <p
+                  style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '14px',
+                    color: '#ffffff',
+                    margin: 0,
+                  }}
+                >
+                  Anonymous • Purple Avatar
+                </p>
               </div>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* TOP VOTED IDEAS SECTION */}
-      <section style={{ marginBottom: '32px' }}>
-        <h2 style={{
-          fontSize: '24px',
-          fontWeight: '800',
-          color: '#131b2e',
-          fontFamily: 'Outfit, sans-serif',
-          letterSpacing: '-0.5px',
-          marginBottom: '16px'
-        }}>
-          Top Voted Ideas
-        </h2>
-
-        {/* The beautiful Top Voted Card */}
-        <div style={{
-          backgroundColor: 'white',
-          border: '1.5px solid rgba(223, 192, 180, 0.4)',
-          borderRadius: '32px',
-          padding: '24px',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.02)',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          {/* Header Row: Title & Thumbs-up Badge */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '800',
-              color: '#131b2e',
+        {/* Decision Summary Section */}
+        <div
+          className="card-hover"
+          style={{
+            background: '#ffffff',
+            borderRadius: '24px',
+            padding: '24px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            transition: 'transform 0.2s ease',
+          }}
+        >
+          <h3
+            style={{
               fontFamily: 'Outfit, sans-serif',
-              lineHeight: 1.3,
-              margin: 0
-            }}>
-              Implement Flexible Four-Day Work Week
-            </h3>
-            
-            {/* Green Badge thumbs-up */}
-            <div style={{
-              backgroundColor: '#f0f2ff',
+              fontSize: '20px',
+              fontWeight: '600',
               color: '#131b2e',
-              fontSize: '12.5px',
-              fontWeight: '800',
-              padding: '6px 12px',
-              borderRadius: '100px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontFamily: 'Lexend, sans-serif',
-              flexShrink: 0
-            }}>
-              <span style={{ fontSize: '11px' }}>👍</span>
-              <span>124</span>
-            </div>
-          </div>
+              margin: '0 0 20px 0',
+            }}
+          >
+            Decision Summary
+          </h3>
 
-          {/* Lime Green Progress Bar */}
-          <div style={{
-            height: '8px',
-            backgroundColor: '#eaedff',
-            borderRadius: '100px',
-            margin: '18px 0 20px 0',
-            overflow: 'hidden'
-          }}>
-            <div style={{
-              height: '100%',
-              width: '78%',
-              backgroundColor: '#BEF264',
-              borderRadius: '100px',
-              transition: 'width 1s ease'
-            }} />
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {mockDecisions.map((decision) => (
+              <div
+                key={decision.id}
+                style={{
+                  background: '#f2f3ff',
+                  borderRadius: '16px',
+                  padding: '16px',
+                  position: 'relative',
+                  border: '1px solid #e2e7ff',
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: 'Lexend, sans-serif',
+                    fontSize: '10px',
+                    fontWeight: '500',
+                    color: '#8B5CF6',
+                    background: 'rgba(139,92,246,0.1)',
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  {decision.category}
+                </span>
+                <p
+                  style={{
+                    fontFamily: 'Inter, sans-serif',
+                    fontSize: '15px',
+                    color: '#131b2e',
+                    margin: '12px 0 12px 0',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  {decision.text}
+                </p>
+                <button
+                  onClick={() => handleCopy(decision)}
+                  className="btn-copy"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: copiedId === decision.id ? '#BEF264' : '#ffffff',
+                    border: '1px solid #e2e7ff',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontSize: '12px',
+                    fontFamily: 'Lexend, sans-serif',
+                    fontWeight: '500',
+                    color: copiedId === decision.id ? '#293e00' : '#584239',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  {copiedId === decision.id ? (
+                    <>
+                      <span style={{ fontSize: '14px' }}>✓</span>
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '14px' }}>📋</span>
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
+            ))}
           </div>
+        </div>
 
-          {/* Speech Bubbles Container (Inner Card) */}
-          <div style={{
-            backgroundColor: '#f2f4ff',
+        {/* Export Options - Full Width */}
+        <div
+          style={{
+            background: '#ffffff',
+            borderRadius: '24px',
+            padding: '24px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+          }}
+        >
+          <h3
+            style={{
+              fontFamily: 'Outfit, sans-serif',
+              fontSize: '20px',
+              fontWeight: '600',
+              color: '#131b2e',
+              margin: '0 0 20px 0',
+            }}
+          >
+            Share Results
+          </h3>
+
+          <div style={{ display: 'grid', gap: '12px' }}>
+            <button
+              onClick={handleShareWhatsApp}
+              className="btn-export"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                background: '#25D366',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '16px 24px',
+                fontSize: '16px',
+                fontFamily: 'Lexend, sans-serif',
+                fontWeight: '600',
+                color: '#ffffff',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(37,211,102,0.3)',
+              }}
+            >
+              <span style={{ fontSize: '24px' }}>📱</span>
+              Share to WhatsApp
+            </button>
+
+            <button
+              onClick={handleCopyAll}
+              className="btn-copy"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '12px',
+                background: '#8B5CF6',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '16px 24px',
+                fontSize: '16px',
+                fontFamily: 'Lexend, sans-serif',
+                fontWeight: '600',
+                color: '#ffffff',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(139,92,246,0.3)',
+              }}
+            >
+              <span style={{ fontSize: '24px' }}>📋</span>
+              {copiedId === 'all' ? 'Copied to Clipboard!' : 'Copy to Clipboard'}
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Footer */}
+        <div
+          style={{
+            background: '#eaedff',
             borderRadius: '24px',
             padding: '20px',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}>
-            {/* Quote 1: Purple avatar + text */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              {/* Purple organic blob mock avatar */}
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: '#8B5CF6',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'white' }} />
-              </div>
-              
-              <p style={{
-                fontSize: '13.5px',
-                color: '#584239',
-                fontWeight: '500',
-                lineHeight: 1.4,
-                margin: 0,
-                fontFamily: 'Inter, sans-serif'
-              }}>
-                "This would significantly reduce burnout and actually increase our overall velocity on sprints."
-              </p>
-            </div>
-
-            {/* Quote 2: Orange avatar + text */}
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              {/* Orange organic blob mock avatar */}
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: '#FF7A3D',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0
-              }}>
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: 'white' }} />
-              </div>
-              
-              <p style={{
-                fontSize: '13.5px',
-                color: '#584239',
-                fontWeight: '500',
-                lineHeight: 1.4,
-                margin: 0,
-                fontFamily: 'Inter, sans-serif'
-              }}>
-                "We piloted this in Q2 and saw a 15% drop in sick days."
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ACTION CTAS */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-        {/* Export Insights purple pill button */}
-        <button
-          onClick={() => setShowShareModal(true)}
-          className="btn-export"
-          style={{
-            height: '48px',
-            borderRadius: '100px',
-            backgroundColor: '#8B5CF6',
-            color: 'white',
-            border: 'none',
-            fontWeight: '800',
-            fontSize: '14.5px',
-            cursor: 'pointer',
-            padding: '0 32px',
-            fontFamily: 'Lexend, sans-serif',
-            transition: 'all 0.25s',
-            outline: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'space-around',
+            textAlign: 'center',
           }}
         >
-          Export Insights
-        </button>
-
-        {/* Back to history link button */}
-        <Link href="/" style={{ textDecoration: 'none', width: '100%' }}>
-          <button 
-            className="btn-back"
+          <div>
+            <p
+              style={{
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '28px',
+                fontWeight: '700',
+                color: '#131b2e',
+                margin: 0,
+              }}
+            >
+              {totalParticipants.toLocaleString()}
+            </p>
+            <p
+              style={{
+                fontFamily: 'Lexend, sans-serif',
+                fontSize: '12px',
+                color: '#584239',
+                margin: '4px 0 0 0',
+                textTransform: 'uppercase',
+              }}
+            >
+              Participants
+            </p>
+          </div>
+          <div
             style={{
-              width: '100%',
-              height: '48px',
-              borderRadius: '100px',
-              backgroundColor: 'transparent',
-              border: '1.5px solid rgba(223, 192, 180, 0.6)',
-              color: '#131b2e',
-              fontWeight: '800',
-              fontSize: '14px',
-              cursor: 'pointer',
-              fontFamily: 'Lexend, sans-serif',
-              transition: 'all 0.2s',
-              outline: 'none'
+              width: '1px',
+              background: '#d2d9f4',
             }}
-          >
-            ← Kembali ke Home
-          </button>
-        </Link>
-      </div>
-
-      {/* Share Modal */}
-      {showShareModal && (
-        <div style={{ 
-          position: 'fixed', 
-          inset: 0, 
-          backgroundColor: 'rgba(19, 27, 46, 0.4)', 
-          backdropFilter: 'blur(4px)',
-          display: 'flex', 
-          alignItems: 'flex-end', 
-          justifyContent: 'center', 
-          zIndex: 999 
-        }} onClick={() => setShowShareModal(false)}>
-          <div style={{ 
-            backgroundColor: 'white', 
-            borderRadius: '28px 28px 0 0', 
-            padding: '28px 24px 40px 24px', 
-            width: '100%', 
-            maxWidth: '480px',
-            borderTop: '1px solid rgba(223, 192, 180, 0.3)'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ fontWeight: '800', fontSize: '20px', textAlign: 'center', flex: 1, fontFamily: 'Outfit, sans-serif', color: '#131b2e' }}>Pratinjau Kartu Berbagi</h3>
-              <button onClick={() => setShowShareModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '22px', color: '#584239' }}>✕</button>
-            </div>
-            
-            {/* Beautiful sharing preview card */}
-            <div style={{ 
-              backgroundColor: '#f2f4ff', 
-              borderRadius: '24px', 
-              padding: '24px',
-              marginBottom: '20px', 
-              border: '1.5px solid rgba(223, 192, 180, 0.3)',
-              textAlign: 'center'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                <span style={{ color: '#FF7A3D', fontWeight: '800', fontSize: '15px' }}>VoxSilent</span>
-                <span style={{ color: '#584239', fontSize: '11px', fontWeight: '600' }}>ID: 284-901</span>
-              </div>
-              <h4 style={{ fontSize: '15px', fontWeight: '800', color: '#131b2e', margin: '0 0 8px 0', fontFamily: 'Outfit, sans-serif' }}>Implement Flexible Four-Day Work Week</h4>
-              <div style={{ fontSize: '28px', fontWeight: '900', color: '#8B5CF6', fontFamily: 'Outfit, sans-serif' }}>78% Konsensus</div>
-              <div style={{ fontSize: '12px', color: '#584239', marginTop: '4px', fontWeight: '600' }}>Disuarakan secara aman & anonim.</div>
-            </div>
-
-            <button 
-              className="btn-export"
-              style={{ 
-                width: '100%', 
-                height: '48px', 
-                borderRadius: '100px', 
-                backgroundColor: '#8B5CF6', 
-                color: 'white', 
-                border: 'none', 
-                fontWeight: '800', 
-                fontSize: '14.5px',
-                marginBottom: '12px',
-                fontFamily: 'Lexend, sans-serif',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
+          />
+          <div>
+            <p
+              style={{
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '28px',
+                fontWeight: '700',
+                color: '#131b2e',
+                margin: 0,
               }}
             >
-              ⬇ &nbsp; Unduh Gambar
-            </button>
-            
-            <button 
-              onClick={() => {
-                navigator.clipboard.writeText(window.location.href);
-                alert("Tautan hasil voting disalin!");
-              }}
-              style={{ 
-                width: '100%', 
-                height: '48px', 
-                borderRadius: '100px', 
-                backgroundColor: 'transparent', 
-                border: '2px solid #8B5CF6', 
-                color: '#8B5CF6',
-                fontWeight: '800',
-                fontSize: '14.5px',
+              {mockWinningOptions.length + mockDecisions.length}
+            </p>
+            <p
+              style={{
                 fontFamily: 'Lexend, sans-serif',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
+                fontSize: '12px',
+                color: '#584239',
+                margin: '4px 0 0 0',
+                textTransform: 'uppercase',
               }}
             >
-              📋 &nbsp; Salin Tautan
-            </button>
+              Decisions
+            </p>
+          </div>
+          <div
+            style={{
+              width: '1px',
+              background: '#d2d9f4',
+            }}
+          />
+          <div>
+            <p
+              style={{
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '28px',
+                fontWeight: '700',
+                color: '#131b2e',
+                margin: 0,
+              }}
+            >
+              23
+            </p>
+            <p
+              style={{
+                fontFamily: 'Lexend, sans-serif',
+                fontSize: '12px',
+                color: '#584239',
+                margin: '4px 0 0 0',
+                textTransform: 'uppercase',
+              }}
+            >
+              Min Duration
+            </p>
           </div>
         </div>
-      )}
-    </SubPageShell>
+      </div>
+    </div>
   );
 }

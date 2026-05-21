@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState } from 'react';
 import { Icons } from '../ui/Icons';
-import { useAppDispatch, useAppSelector } from '../../lib/hooks';
-import { setShowSpotlight, nextSpotlightStep } from '../../lib/features/ui/uiSlice';
+import { useAppDispatch, useAppSelector } from '@/application/hooks';
+import { setShowSpotlight, nextSpotlightStep } from '@/application/store/slices/uiSlice';
 
 export default function SpotlightOverlay() {
   const dispatch = useAppDispatch();
@@ -33,7 +33,7 @@ export default function SpotlightOverlay() {
       }
     }, 150);
     return () => clearTimeout(timeoutId);
-  }, [currentSpotlightStep, showSpotlight, isGMLoggedIn]);
+  }, [currentSpotlightStep, showSpotlight, isGMLoggedIn, steps]);
 
   if (!isGMLoggedIn || !showSpotlight || !targetRect) return null;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import { useAppSelector } from '../lib/hooks';
+import { useAppSelector } from '@/application/hooks';
 import SpotlightOverlay from '../components/layout/SpotlightOverlay';
 import HomeTab from '../components/features/HomeTab';
 import CanvasTab from '../components/features/CanvasTab';

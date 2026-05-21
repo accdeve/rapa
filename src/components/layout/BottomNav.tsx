@@ -1,7 +1,8 @@
 "use client";
 import React from 'react';
-import { useAppDispatch, useAppSelector } from '../../lib/hooks';
-import { setActiveTab } from '../../lib/features/ui/uiSlice';
+import { useAppDispatch, useAppSelector } from '@/application/hooks';
+import { setActiveTab } from '@/application/store/slices/uiSlice';
+import { usePathname, useRouter } from 'next/navigation';
 
 const navItems = [
   { index: 0, label: 'Rooms', icon: (active: boolean) => (
@@ -29,6 +30,8 @@ const navItems = [
 export default function BottomNav() {
   const dispatch = useAppDispatch();
   const { activeTab } = useAppSelector((state) => state.ui);
+  const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <nav style={{
@@ -49,7 +52,12 @@ export default function BottomNav() {
         return (
           <button
             key={index}
-            onClick={() => dispatch(setActiveTab(index))}
+            onClick={() => {
+              if (pathname !== '/') {
+                router.push('/');
+              }
+              dispatch(setActiveTab(index));
+            }}
             style={{
               display: 'flex', 
               flexDirection: 'column', 

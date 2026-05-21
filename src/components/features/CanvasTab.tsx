@@ -1,6 +1,10 @@
 "use client";
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from '../ui/Icons';
+import { useAppSelector, useAppDispatch } from '@/application/hooks';
+import { SupabaseCanvasRepository } from '@/infrastructure/repositories/SupabaseCanvasRepository';
+import { selectCurrentRoom } from '@/application/store/slices/roomSlice';
+import { setGMLoggedIn } from '@/application/store/slices/uiSlice';
 
 interface Idea {
   id: string;
@@ -15,13 +19,25 @@ interface Support {
   text: string;
 }
 
-export default function CanvasTab() {
+interface CanvasTabProps {
+  roomId?: string;
+  isGMMode?: boolean;
+}
+
+export default function CanvasTab({ roomId: propRoomId, isGMMode: propIsGMMode }: CanvasTabProps) {
+  const reduxRoom = useAppSelector(selectCurrentRoom);
+  const roomId = propRoomId || reduxRoom?.id;
+
+  const isGMLoggedIn = useAppSelector((state) => state.ui.isGMLoggedIn);
+  const dispatch = useAppDispatch();
+
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const startPan = useRef({ x: 0, y: 0 });
 
   // Game Master (GM) Mode state
-  const [isGMMode, setIsGMMode] = useState(false);
+  const [isGMMode, setIsGMMode] = useState(propIsGMMode ?? false);
+  const effectiveGMMode = isGMLoggedIn && isGMMode;
 
   // Merge modal state
   const [mergeModal, setMergeModal] = useState<{ isOpen: boolean; sourceId: string | null }>({
@@ -60,7 +76,203 @@ export default function CanvasTab() {
   
   // States for smooth dragging of items
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const draggingIdRef = useRef<string | null>(null);
   const itemDragOffset = useRef({ x: 0, y: 0 });
+
+  const repo = useRef(new SupabaseCanvasRepository());
+
+  const syncCanvasItems = React.useCallback((items: any[]) => {
+    const newIdeas: Idea[] = [];
+    const newSupports: Support[] = [];
+    const newPositions: Record<string, { x: number; y: number }> = {};
+
+    items.forEach(item => {
+      if (item.type === 'idea') {
+        newIdeas.push({
+          id: item.id,
+          label: item.metadata?.label || `Gagasan`,
+          text: item.content,
+          color: item.color || 'var(--tertiary)'
+        });
+      } else {
+        newSupports.push({
+          id: item.id,
+          ideaId: item.parentId || '',
+          text: item.content
+        });
+      }
+      newPositions[item.id] = { x: item.xPos, y: item.yPos };
+    });
+
+    setIdeas(newIdeas);
+    setSupports(newSupports);
+    setPositions(prev => {
+      const merged = { ...prev };
+      Object.keys(newPositions).forEach(id => {
+        if (id !== draggingIdRef.current) {
+          merged[id] = newPositions[id];
+        }
+      });
+      return merged;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    const loadCanvas = async () => {
+      try {
+        const items = await repo.current.getItems(roomId);
+        syncCanvasItems(items);
+      } catch (err) {
+        console.error("Failed to load canvas items:", err);
+      }
+    };
+
+    loadCanvas();
+
+    const unsubscribe = repo.current.subscribeToCanvas(roomId, (items) => {
+      syncCanvasItems(items);
+    });
+
+    return () => unsubscribe();
+  }, [roomId, syncCanvasItems]);
+
+  // NON-GM & NO ROOM ACTIVE VIEW: Stunning Marketing Presentation with Upgrade GM CTA
+  if (!roomId && !isGMLoggedIn) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100%',
+        color: '#131b2e',
+        fontFamily: 'Inter, sans-serif',
+        padding: '8px 4px 48px 4px',
+        animation: 'fadeIn 0.5s ease-out'
+      }}>
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '32px',
+          padding: '32px 24px',
+          border: '1px solid rgba(223, 192, 180, 0.4)',
+          boxShadow: '0 16px 48px rgba(107, 56, 212, 0.05)',
+          textAlign: 'center',
+          marginBottom: '24px',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          {/* Glassmorphism Blur Highlight */}
+          <div style={{
+            position: 'absolute',
+            top: '-30px',
+            right: '-30px',
+            width: '120px',
+            height: '120px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(139, 92, 246, 0.08)',
+            filter: 'blur(24px)',
+            pointerEvents: 'none'
+          }} />
+
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>💡</div>
+          <h2 style={{
+            fontFamily: 'Outfit, sans-serif',
+            fontWeight: '900',
+            fontSize: '22px',
+            color: '#131b2e',
+            marginBottom: '8px',
+            letterSpacing: '-0.5px'
+          }}>Kanvas Curah Pendapat 2D Interaktif</h2>
+          <p style={{
+            fontSize: '13.5px',
+            color: '#584239',
+            lineHeight: 1.5,
+            marginBottom: '24px'
+          }}>
+            Tuliskan ide liar Anda pada lembaran stiker digital, atur letaknya, hubungkan ide yang berdekatan secara organik, dan gabungkan ide sejenis secara instan dengan rekan tim lainnya secara real-time!
+          </p>
+
+          {/* Premium Bullet Points for Marketing */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            textAlign: 'left',
+            marginBottom: '28px',
+            backgroundColor: '#faf8ff',
+            borderRadius: '20px',
+            padding: '20px',
+            border: '1.5px solid rgba(139, 92, 246, 0.06)'
+          }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '18px' }}>🎨</span>
+              <div>
+                <strong style={{ fontSize: '13px', color: '#131b2e', fontFamily: 'Lexend, sans-serif' }}>Kanvas 2D Bebas Hambatan</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>Gunakan gerakan drag, pan, dan zoom untuk mengelompokkan ide pendukung di bawah ide utama dengan visualisasi garis putus-putus otomatis.</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '18px' }}>⚡</span>
+              <div>
+                <strong style={{ fontSize: '13px', color: '#131b2e', fontFamily: 'Lexend, sans-serif' }}>Penggabungan Ide (Merge) Pintar</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>Klik tombol merger ⇿ untuk menggabungkan dua gagasan serupa. VoxSilent secara cerdas memindahkan seluruh stiker pendukung ke target baru.</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: '18px' }}>👥</span>
+              <div>
+                <strong style={{ fontSize: '13px', color: '#131b2e', fontFamily: 'Lexend, sans-serif' }}>Kolaborasi Supabase Real-time</strong>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>Sinkronisasi koordinat stiker instan dengan perlindungan drag anti-snap khusus demi pengalaman kolaborasi interaktif tanpa hambatan.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Upgrade banner CTA */}
+          <div style={{
+            backgroundColor: 'rgba(255, 122, 61, 0.04)',
+            border: '1.5px solid rgba(255, 122, 61, 0.15)',
+            borderRadius: '20px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px'
+          }}>
+            <span style={{
+              fontSize: '13px',
+              fontWeight: '800',
+              color: '#FF7A3D',
+              fontFamily: 'Lexend, sans-serif',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>🚀 Rancang Alur Rapat Curah Pendapat Anda</span>
+            <p style={{ margin: 0, fontSize: '12px', color: '#584239', lineHeight: 1.4 }}>
+              Masuk sebagai Game Master (GM) untuk membuat rapat baru Anda sendiri, mengundang rekan tim, dan membuka akses kanvas 2D kolaboratif sepenuhnya.
+            </p>
+            <button
+              onClick={() => dispatch(setGMLoggedIn(true))}
+              className="btn-purple"
+              style={{
+                width: '100%',
+                padding: '14px',
+                borderRadius: '14px',
+                border: 'none',
+                fontWeight: '800',
+                fontSize: '13.5px',
+                fontFamily: 'Lexend, sans-serif',
+                cursor: 'pointer',
+                backgroundColor: '#8B5CF6',
+                color: 'white',
+                boxShadow: '0 4px 14px rgba(139, 92, 246, 0.2)',
+                transition: 'all 0.2s'
+              }}
+            >
+              Aktifkan Portal Game Master
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Panning handlers (Background)
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -87,6 +299,7 @@ export default function CanvasTab() {
     if (text) setReplyingTo(text);
     
     setDraggingId(id);
+    draggingIdRef.current = id;
     const pos = positions[id] || { x: 100, y: 100 };
     itemDragOffset.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -108,43 +321,68 @@ export default function CanvasTab() {
     if (!draggingId) return;
     e.stopPropagation();
     setDraggingId(null);
+    draggingIdRef.current = null;
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+
+    if (roomId) {
+      const pos = positions[draggingId];
+      if (pos) {
+        repo.current.updateItemPos(draggingId, pos.x, pos.y).catch(console.error);
+      }
+    }
   };
 
   // Add new idea or support from input
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputText.trim()) return;
 
     if (replyingTo) {
       // Find parent idea
       const parentIdea = ideas.find(i => i.text === replyingTo);
       if (parentIdea) {
-        const newId = 's' + Date.now();
-        setSupports(prev => [...prev, { id: newId, ideaId: parentIdea.id, text: inputText }]);
-        // Place new support sticker offset from parent
-        setPositions(prev => ({
-          ...prev,
-          [newId]: {
-            x: positions[parentIdea.id].x + (Math.random() * 80 - 40),
-            y: positions[parentIdea.id].y + 120
-          }
-        }));
+        const x = positions[parentIdea.id].x + (Math.random() * 80 - 40);
+        const y = positions[parentIdea.id].y + 120;
+
+        if (roomId) {
+          await repo.current.saveItem({
+            roomId,
+            type: 'support',
+            parentId: parentIdea.id,
+            content: inputText,
+            xPos: x,
+            yPos: y
+          }).catch(console.error);
+        } else {
+          const newId = 's' + Date.now();
+          setSupports(prev => [...prev, { id: newId, ideaId: parentIdea.id, text: inputText }]);
+          setPositions(prev => ({ ...prev, [newId]: { x, y } }));
+        }
       }
     } else {
-      // Add new idea
-      const newId = 'i' + Date.now();
       const nextLetter = String.fromCharCode(65 + ideas.length);
-      setIdeas(prev => [...prev, {
-        id: newId,
-        label: `Gagasan ${nextLetter}`,
-        text: inputText,
-        color: 'var(--tertiary)'
-      }]);
-      // Place near canvas center view
-      setPositions(prev => ({
-        ...prev,
-        [newId]: { x: 150 + Math.random() * 60, y: 150 + Math.random() * 60 }
-      }));
+      const x = 150 + Math.random() * 60;
+      const y = 150 + Math.random() * 60;
+
+      if (roomId) {
+        await repo.current.saveItem({
+          roomId,
+          type: 'idea',
+          content: inputText,
+          color: 'var(--tertiary)',
+          xPos: x,
+          yPos: y,
+          metadata: { label: `Gagasan ${nextLetter}` }
+        }).catch(console.error);
+      } else {
+        const newId = 'i' + Date.now();
+        setIdeas(prev => [...prev, {
+          id: newId,
+          label: `Gagasan ${nextLetter}`,
+          text: inputText,
+          color: 'var(--tertiary)'
+        }]);
+        setPositions(prev => ({ ...prev, [newId]: { x, y } }));
+      }
     }
 
     setInputText('');
@@ -152,42 +390,64 @@ export default function CanvasTab() {
   };
 
   // Merge handler
-  const handleMerge = (sourceId: string, targetId: string) => {
+  const handleMerge = async (sourceId: string, targetId: string) => {
     const sourceIdea = ideas.find(i => i.id === sourceId);
     const targetIdea = ideas.find(i => i.id === targetId);
     if (!sourceIdea || !targetIdea) return;
 
-    // 1. Combine texts of ideas
-    setIdeas(prev => prev.map(i => {
-      if (i.id === targetId) {
-        return {
-          ...i,
-          text: `${i.text} & ${sourceIdea.text}`
-        };
-      }
-      return i;
-    }).filter(i => i.id !== sourceId));
+    if (roomId) {
+      try {
+        const combinedText = `${targetIdea.text} & ${sourceIdea.text}`;
+        await repo.current.updateItemContent(targetId, combinedText);
 
-    // 2. Re-route parent ideas of supports
-    setSupports(prev => prev.map(s => {
-      if (s.ideaId === sourceId) {
-        return { ...s, ideaId: targetId };
+        const sourceSupports = supports.filter(s => s.ideaId === sourceId);
+        await Promise.all(sourceSupports.map(s => repo.current.updateItemParent(s.id, targetId)));
+
+        await repo.current.deleteItem(sourceId);
+      } catch (err) {
+        console.error("Failed to merge ideas in DB:", err);
       }
-      return s;
-    }));
+    } else {
+      // 1. Combine texts of ideas
+      setIdeas(prev => prev.map(i => {
+        if (i.id === targetId) {
+          return {
+            ...i,
+            text: `${i.text} & ${sourceIdea.text}`
+          };
+        }
+        return i;
+      }).filter(i => i.id !== sourceId));
+
+      // 2. Re-route parent ideas of supports
+      setSupports(prev => prev.map(s => {
+        if (s.ideaId === sourceId) {
+          return { ...s, ideaId: targetId };
+        }
+        return s;
+      }));
+    }
 
     // 3. Clean up modal state
     setMergeModal({ isOpen: false, sourceId: null });
   };
 
   // Delete handlers (GM mode only)
-  const handleDeleteIdea = (id: string) => {
-    setIdeas(prev => prev.filter(i => i.id !== id));
-    setSupports(prev => prev.filter(s => s.ideaId !== id));
+  const handleDeleteIdea = async (id: string) => {
+    if (roomId) {
+      await repo.current.deleteItem(id).catch(console.error);
+    } else {
+      setIdeas(prev => prev.filter(i => i.id !== id));
+      setSupports(prev => prev.filter(s => s.ideaId !== id));
+    }
   };
 
-  const handleDeleteSupport = (id: string) => {
-    setSupports(prev => prev.filter(s => s.id !== id));
+  const handleDeleteSupport = async (id: string) => {
+    if (roomId) {
+      await repo.current.deleteItem(id).catch(console.error);
+    } else {
+      setSupports(prev => prev.filter(s => s.id !== id));
+    }
   };
 
   return (
@@ -197,24 +457,30 @@ export default function CanvasTab() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
         <div>
           <h2 className="text-h1" style={{ marginBottom: '4px', letterSpacing: '-0.5px' }}>Demo Kanvas 2D</h2>
-          <p className="text-body" style={{ fontSize: '13px', lineHeight: 1.4, color: 'var(--outline)' }}>Tarik stiker, klik gagasan untuk merge ⇿, atau aktifkan mode GM untuk hapus ×.</p>
+          <p className="text-body" style={{ fontSize: '13px', lineHeight: 1.4, color: 'var(--outline)' }}>
+            {isGMLoggedIn
+              ? "Tarik stiker, klik gagasan untuk merge ⇿, atau aktifkan mode GM untuk hapus ×."
+              : "Tarik stiker ke gagasan untuk memberikan pendapat pendukung."}
+          </p>
         </div>
         
         {/* GM Mode Toggle Button */}
-        <button 
-          onClick={() => setIsGMMode(!isGMMode)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '100px',
-            border: isGMMode ? '1.5px solid #ff4d4d' : '1px solid rgba(223,192,180,0.4)',
-            backgroundColor: isGMMode ? 'rgba(255, 77, 77, 0.12)' : 'white',
-            color: isGMMode ? '#e60000' : 'var(--outline)',
-            fontWeight: '800', fontSize: '12px', cursor: 'pointer', transition: 'all 0.25s',
-            boxShadow: isGMMode ? '0 4px 10px rgba(255,77,77,0.15)' : 'none'
-          }}
-        >
-          <span>👑</span>
-          <span>{isGMMode ? 'GM View Active' : 'GM View'}</span>
-        </button>
+        {isGMLoggedIn && (
+          <button 
+            onClick={() => setIsGMMode(!isGMMode)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '100px',
+              border: effectiveGMMode ? '1.5px solid #ff4d4d' : '1px solid rgba(223,192,180,0.4)',
+              backgroundColor: effectiveGMMode ? 'rgba(255, 77, 77, 0.12)' : 'white',
+              color: effectiveGMMode ? '#e60000' : 'var(--outline)',
+              fontWeight: '800', fontSize: '12px', cursor: 'pointer', transition: 'all 0.25s',
+              boxShadow: effectiveGMMode ? '0 4px 10px rgba(255,77,77,0.15)' : 'none'
+            }}
+          >
+            <span>👑</span>
+            <span>{effectiveGMMode ? 'GM View Active' : 'GM View'}</span>
+          </button>
+        )}
       </div>
 
       {/* Merge Glassmorphism Modal */}
@@ -235,7 +501,7 @@ export default function CanvasTab() {
             <p style={{ fontSize: '13px', color: 'var(--outline)', textAlign: 'center', lineHeight: 1.5 }}>
               Pilih gagasan target untuk menggabungkan ide:<br />
               <strong style={{ color: 'var(--action-orange)', display: 'block', margin: '6px 0', fontSize: '13.5px', fontWeight: '800' }}>
-                "{ideas.find(i => i.id === mergeModal.sourceId)?.text}"
+                {'"'} {ideas.find(i => i.id === mergeModal.sourceId)?.text} {'"'}
               </strong>
               Semua pendapat rekan yang menempel akan otomatis dipindahkan.
             </p>
@@ -335,7 +601,7 @@ export default function CanvasTab() {
                 }}
               >
                 {/* GM Delete Button */}
-                {isGMMode && (
+                {effectiveGMMode && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleDeleteIdea(idea.id); }}
                     style={{ position: 'absolute', top: '-8px', right: '-8px', width: '20px', height: '20px', borderRadius: '50%', backgroundColor: '#ff4d4d', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.2)', zIndex: 10 }}
@@ -388,7 +654,7 @@ export default function CanvasTab() {
                 }}
               >
                 {/* GM Delete Button */}
-                {isGMMode && (
+                {effectiveGMMode && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleDeleteSupport(support.id); }}
                     style={{ position: 'absolute', top: '-6px', right: '-6px', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#ff4d4d', color: 'white', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '900', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', zIndex: 10 }}
