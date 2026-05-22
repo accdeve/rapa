@@ -644,292 +644,346 @@ export default function ParticipantSession() {
 
   const handleGenerateShareImage = () => {
     const canvas = document.createElement('canvas');
-    const canvasHeight = 1400;
-    canvas.width = 800;
-    canvas.height = canvasHeight;
+    const CARD_W = 800;
+    canvas.width = CARD_W;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Helper function for text wrapping
-    const wrapText = (c: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, lineHeight: number) => {
+    // ── helpers ──────────────────────────────────────────────────────────────
+    /** Wraps text within maxWidth, returns final Y */
+    const wrapText = (
+      c: CanvasRenderingContext2D,
+      text: string,
+      x: number,
+      y: number,
+      maxWidth: number,
+      lineHeight: number
+    ): number => {
       const words = text.split(' ');
       let line = '';
-      let currentY = y;
-      
-      for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = c.measureText(testLine);
-        const testWidth = metrics.width;
-        if (testWidth > maxWidth && n > 0) {
-          c.fillText(line, x, currentY);
-          line = words[n] + ' ';
-          currentY += lineHeight;
+      let curY = y;
+      for (let i = 0; i < words.length; i++) {
+        const test = line + words[i] + ' ';
+        if (c.measureText(test).width > maxWidth && i > 0) {
+          c.fillText(line.trimEnd(), x, curY);
+          line = words[i] + ' ';
+          curY += lineHeight;
         } else {
-          line = testLine;
+          line = test;
         }
       }
-      c.fillText(line, x, currentY);
-      return currentY;
+      c.fillText(line.trimEnd(), x, curY);
+      return curY;
     };
 
-    // 1. Draw premium background gradient
-    const bgGrad = ctx.createLinearGradient(0, 0, 800, canvasHeight);
-    bgGrad.addColorStop(0, '#0f172a'); // slate-900
-    bgGrad.addColorStop(0.5, '#1e1b4b'); // indigo-950
-    bgGrad.addColorStop(1, '#020617'); // slate-950
-    ctx.fillStyle = bgGrad;
-    ctx.fillRect(0, 0, 800, canvasHeight);
+    /** Draw a rounded rectangle path */
+    const rr = (c: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number | number[]) => {
+      c.beginPath();
+      c.roundRect(x, y, w, h, r as number);
+    };
 
-    // Draw glowing orb effects in the background
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    const orb1 = ctx.createRadialGradient(200, 150, 0, 200, 150, 300);
-    orb1.addColorStop(0, 'rgba(139, 92, 246, 0.15)'); // purple glow
-    orb1.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = orb1;
-    ctx.beginPath();
-    ctx.arc(200, 150, 300, 0, Math.PI * 2);
-    ctx.fill();
+    // ── layout constants ──────────────────────────────────────────────────────
+    const PAD    = 48;
+    const INNER  = CARD_W - PAD * 2;   // 704px usable width
+    const COL    = '#131b2e';
+    const MUTED  = '#584239';
+    const PURPLE = '#8B5CF6';
+    const ORANGE = '#FF7A3D';
+    const LIME   = '#BEF264';
+    const LIME_D = '#293e00';
 
-    const orb2 = ctx.createRadialGradient(600, canvasHeight - 300, 0, 600, canvasHeight - 300, 400);
-    orb2.addColorStop(0, 'rgba(255, 122, 61, 0.1)'); // orange glow
-    orb2.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = orb2;
-    ctx.beginPath();
-    ctx.arc(600, canvasHeight - 300, 400, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // ── measure dynamic heights ───────────────────────────────────────────────
+    const ideaText = collaborativeWinner
+      ? (collaborativeWinner.text.split(': ').slice(1).join(': ') || collaborativeWinner.text)
+      : 'Tidak ada gagasan';
 
-    // 2. Draw border frame
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(30, 30, 740, canvasHeight - 60);
-
-    // 3. Draw Header
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 28px sans-serif';
-    ctx.fillText('Rapa', 70, 85);
-
-    ctx.fillStyle = '#8B5CF6';
-    ctx.font = '800 13px sans-serif';
-    ctx.fillText('• KEPUTUSAN RAPAT ANONIM', 170, 80);
-
-    // Status Badge - Finished
-    ctx.fillStyle = 'rgba(71, 104, 0, 0.2)';
-    ctx.beginPath();
-    ctx.roundRect(530, 58, 200, 38, 19);
-    ctx.fill();
-
-    ctx.fillStyle = '#BEF264'; // lime green
-    ctx.font = '800 13px sans-serif';
-    ctx.fillText('🏁 RAPAT SELESAI', 560, 82);
-
-    // 4. Draw Brainstorming Question/Topic Section
-    let currentY = 135;
-    ctx.fillStyle = '#8B5CF6';
-    ctx.font = '800 11px sans-serif';
-    ctx.fillText('📋 TOPIK / PERTANYAAN RAPAT', 70, currentY);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 18px sans-serif';
-    ctx.textAlign = 'left';
-    const topicText = room?.title || 'Rapat Curah Pendapat';
-    const topicEndY = wrapText(ctx, topicText, 70, currentY + 28, 660, 26);
-
-    const mainBoxY = topicEndY + 30;
-
-    // 5. Draw Winner Content
-    const ideaText = collaborativeWinner ? (collaborativeWinner.text.split(': ').slice(1).join(': ') || collaborativeWinner.text) : 'Tidak ada gagasan';
-    
-    // Dynamic Main Box Height Pre-calculation
-    const testCanvas = document.createElement('canvas');
-    const testCtx = testCanvas.getContext('2d');
-    let textLinesCount = 1;
-    if (testCtx) {
-      testCtx.font = '800 22px sans-serif';
+    ctx.font = '800 20px sans-serif';
+    let ideaLines = 0;
+    {
       const words = `"${ideaText}"`.split(' ');
       let line = '';
-      for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = testCtx.measureText(testLine);
-        if (metrics.width > 580 && n > 0) {
-          textLinesCount++;
-          line = words[n] + ' ';
-        } else {
-          line = testLine;
-        }
+      for (let i = 0; i < words.length; i++) {
+        const test = line + words[i] + ' ';
+        if (ctx.measureText(test).width > INNER - 32 && i > 0) { ideaLines++; line = words[i] + ' '; }
+        else line = test;
       }
+      ideaLines++;
     }
-    const ideaTextHeight = (textLinesCount - 1) * 32;
-    const endIdeaY = mainBoxY + 180 + ideaTextHeight;
-    const statsY = endIdeaY + 36;
-    
-    let mainBoxHeight = (statsY + 40) - mainBoxY;
-    let supportHeaderY = 0;
-    let supportYStart = 0;
-    
+
     const winnerSupports = collaborativeWinner?.supports || [];
-    const maxToShow = winnerSupports.length > 2 ? 3 : 2;
-    const supportsToShow = winnerSupports.slice(0, maxToShow);
-    
-    if (supportsToShow.length > 0) {
-      supportHeaderY = endIdeaY + 70;
-      supportYStart = supportHeaderY + 30;
-      mainBoxHeight = (supportYStart + (supportsToShow.length * 60) + 10) - mainBoxY;
-    }
+    const supportsToShow = winnerSupports.slice(0, 3);
+    const sortedOptions  = [...votingOptions].sort((a, b) => b.votes - a.votes).slice(0, 3);
 
-    // Draw Main Content Box
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    // ── compute total canvas height ────────────────────────────────────────────
+    const HEADER_H    = 90;
+    const DATE_H      = 36;
+    const GAP         = 24;
+    const TOPIC_H     = 28 + 28;
+    const WINNER_H    = 60 + ideaLines * 30 + 32 + (supportsToShow.length > 0 ? 24 + supportsToShow.length * 52 : 0) + GAP;
+    const DIST_H      = 28 + sortedOptions.length * 64 + (sortedOptions.length === 0 ? 40 : 0);
+    const STATS_H     = 72;
+    const FOOTER_H    = 60;
+
+    const CANVAS_H = HEADER_H + DATE_H + GAP + TOPIC_H + GAP + WINNER_H + GAP + DIST_H + GAP + STATS_H + FOOTER_H + 32;
+    canvas.height = CANVAS_H;
+
+    // ── 1. Background (light, app-style) ─────────────────────────────────────
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    bgGrad.addColorStop(0, '#FAF8FF');
+    bgGrad.addColorStop(1, '#F0ECFF');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, CARD_W, CANVAS_H);
+
+    // Subtle grid
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.055)';
     ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(70, mainBoxY, 660, mainBoxHeight, 24);
-    ctx.fill();
-    ctx.stroke();
+    for (let gx = 0; gx < CARD_W; gx += 24) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, CANVAS_H); ctx.stroke(); }
+    for (let gy = 0; gy < CANVAS_H; gy += 24) { ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(CARD_W, gy); ctx.stroke(); }
 
-    ctx.fillStyle = '#FF7A3D'; // orange
-    ctx.font = '800 13px sans-serif';
-    ctx.fillText('💡 GAGASAN UTAMA TERPILIH', 105, mainBoxY + 45);
+    // Purple top-left glow
+    const glowTL = ctx.createRadialGradient(0, 0, 0, 0, 0, 300);
+    glowTL.addColorStop(0, 'rgba(139, 92, 246, 0.10)');
+    glowTL.addColorStop(1, 'rgba(139, 92, 246, 0)');
+    ctx.fillStyle = glowTL; ctx.fillRect(0, 0, CARD_W, CANVAS_H);
 
-    ctx.fillStyle = 'rgba(190, 242, 100, 0.1)';
-    ctx.beginPath();
-    ctx.arc(400, mainBoxY + 105, 40, 0, Math.PI * 2);
-    ctx.fill();
+    // Orange bottom-right glow
+    const glowBR = ctx.createRadialGradient(CARD_W, CANVAS_H, 0, CARD_W, CANVAS_H, 360);
+    glowBR.addColorStop(0, 'rgba(255, 122, 61, 0.08)');
+    glowBR.addColorStop(1, 'rgba(255, 122, 61, 0)');
+    ctx.fillStyle = glowBR; ctx.fillRect(0, 0, CARD_W, CANVAS_H);
 
-    ctx.fillStyle = '#BEF264';
-    ctx.font = '36px sans-serif';
+    // Outer border
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.18)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(0.75, 0.75, CARD_W - 1.5, CANVAS_H - 1.5);
+
+    // ── 2. Header ────────────────────────────────────────────────────────────
+    // Orange left accent bar
+    ctx.fillStyle = ORANGE;
+    ctx.fillRect(0, 0, 5, HEADER_H);
+
+    // Rapa logo badge
+    ctx.fillStyle = 'rgba(255, 122, 61, 0.10)';
+    rr(ctx, PAD, 22, 90, 34, 10); ctx.fill();
+    ctx.fillStyle = ORANGE;
+    ctx.font = '800 15px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Rapa', PAD + 12, 44);
+
+    // Subtitle
+    ctx.fillStyle = PURPLE;
+    ctx.font = '700 11px sans-serif';
+    ctx.fillText('• KARTU KEPUTUSAN RAPAT ANONIM', PAD + 108, 44);
+
+    // "Rapat Selesai" badge — right side, bounded within card
+    ctx.font = '700 11px sans-serif';
+    const badgeTxt = '🏁 RAPAT SELESAI';
+    const badgeW   = Math.min(ctx.measureText(badgeTxt).width + 28, 175);
+    const badgeX   = CARD_W - PAD - badgeW;
+    ctx.fillStyle = 'rgba(41, 62, 0, 0.12)';
+    rr(ctx, badgeX, 24, badgeW, 30, 10); ctx.fill();
+    ctx.fillStyle = LIME_D;
     ctx.textAlign = 'center';
-    ctx.fillText('👑', 400, mainBoxY + 117);
+    ctx.fillText(badgeTxt, badgeX + badgeW / 2, 43);
     ctx.textAlign = 'left';
 
-    // Winning Idea Text
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 22px sans-serif';
-    ctx.textAlign = 'center';
-    wrapText(ctx, `"${ideaText}"`, 400, mainBoxY + 180, 580, 32);
+    let curY = HEADER_H;
+
+    // ── 3. Date strip ─────────────────────────────────────────────────────────
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.06)';
+    ctx.fillRect(0, curY, CARD_W, DATE_H);
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.10)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0, curY); ctx.lineTo(CARD_W, curY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, curY + DATE_H); ctx.lineTo(CARD_W, curY + DATE_H); ctx.stroke();
+
+    const nowDate = new Date();
+    const dateStr = nowDate.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeStr = nowDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+    ctx.fillStyle = PURPLE;
+    ctx.font = '600 11px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`📅  ${dateStr}  ·  ${timeStr} WIB`, PAD, curY + 22);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = MUTED;
+    ctx.fillText(`Kode: ${code}`, CARD_W - PAD, curY + 22);
     ctx.textAlign = 'left';
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    curY += DATE_H + GAP;
+
+    // ── 4. Topic ──────────────────────────────────────────────────────────────
+    ctx.fillStyle = ORANGE;
+    ctx.font = '800 10px sans-serif';
+    ctx.fillText('📋  TOPIK / PERTANYAAN RAPAT', PAD, curY);
+    curY += 20;
+
+    const topicText = room?.title || 'Rapat Curah Pendapat';
+    ctx.fillStyle = COL;
+    ctx.font = '700 17px sans-serif';
+    const topicEndY = wrapText(ctx, topicText, PAD, curY, INNER, 26);
+    curY = topicEndY + 10;
+
+    // Divider
+    ctx.strokeStyle = 'rgba(223, 192, 180, 0.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, curY + 8); ctx.lineTo(CARD_W - PAD, curY + 8); ctx.stroke();
+    curY += GAP + 8;
+
+    // ── 5. Winner card (white, bordered, lime accent) ─────────────────────────
+    const winStartY = curY;
+
+    // Card shadow effect
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.06)';
+    rr(ctx, PAD + 4, winStartY + 6, INNER, WINNER_H, 20); ctx.fill();
+
+    // Card background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.shadowColor = 'rgba(139, 92, 246, 0.10)';
+    ctx.shadowBlur = 18;
+    rr(ctx, PAD, winStartY, INNER, WINNER_H, 20); ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Card border
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.18)'; ctx.lineWidth = 1.5;
+    rr(ctx, PAD, winStartY, INNER, WINNER_H, 20); ctx.stroke();
+
+    // Lime left accent
+    ctx.fillStyle = LIME;
+    rr(ctx, PAD, winStartY, 5, WINNER_H, [4, 0, 0, 4]); ctx.fill();
+
+    const WI = PAD + 20;
+    const WW = INNER - 40;
+    let wy = winStartY + 28;
+
+    // Trophy label
+    ctx.fillStyle = 'rgba(190, 242, 100, 0.18)';
+    rr(ctx, WI, wy - 16, 170, 24, 7); ctx.fill();
+    ctx.fillStyle = LIME_D;
+    ctx.font = '800 10px sans-serif';
+    ctx.fillText('🏆  KEPUTUSAN TERPOPULER', WI + 8, wy);
+    wy += 22;
+
+    // Idea text
+    ctx.fillStyle = COL;
+    ctx.font = '800 20px sans-serif';
+    const ideaEndY = wrapText(ctx, `"${ideaText}"`, WI, wy, WW, 30);
+    wy = ideaEndY + 18;
+
+    // Stats line
+    const totalV   = dbVotes.length;
+    const winVotes = collaborativeWinner?.votes || 0;
+    const winPct   = totalV > 0 ? Math.round((winVotes / totalV) * 100) : 0;
+    ctx.fillStyle = PURPLE;
     ctx.font = '600 13px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`Mendapat ${collaborativeWinner?.votes || 0} vote dari total ${dbVotes.length} partisipasi`, 400, statsY);
-    ctx.textAlign = 'left';
+    ctx.fillText(`${winVotes} suara  ·  ${winPct}% dari total ${totalV} partisipan`, WI, wy);
+    wy += GAP;
 
-    // Draw Winner Supporting Opinions
+    // Supporting opinions
     if (supportsToShow.length > 0) {
-      ctx.fillStyle = '#8B5CF6';
-      ctx.font = '800 12px sans-serif';
-      ctx.fillText('💬 PENDAPAT PENDUKUNG:', 105, supportHeaderY);
-
-      let supportY = supportYStart;
+      ctx.fillStyle = PURPLE;
+      ctx.font = '800 10px sans-serif';
+      ctx.fillText('💬  PENDAPAT PENDUKUNG:', WI, wy);
+      wy += 18;
       supportsToShow.forEach((sup) => {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-        ctx.beginPath();
-        ctx.roundRect(100, supportY, 600, 46, 10);
-        ctx.fill();
-
-        ctx.fillStyle = '#eaedff';
-        ctx.font = 'italic 12.5px sans-serif';
-        const cleanSupport = sup.length > 80 ? sup.slice(0, 80) + '...' : sup;
-        ctx.fillText(`"${cleanSupport}"`, 125, supportY + 28);
-        supportY += 60;
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.05)';
+        rr(ctx, WI, wy, WW, 36, 8); ctx.fill();
+        ctx.strokeStyle = 'rgba(139, 92, 246, 0.10)'; ctx.lineWidth = 1;
+        rr(ctx, WI, wy, WW, 36, 8); ctx.stroke();
+        ctx.fillStyle = MUTED;
+        ctx.font = 'italic 12px sans-serif';
+        const cleanSup = sup.length > 90 ? sup.slice(0, 90) + '…' : sup;
+        ctx.fillText(`"${cleanSup}"`, WI + 12, wy + 23);
+        wy += 52;
       });
     }
 
-    // 6. Draw Vote Distribution Box
-    const voteBoxY = mainBoxY + mainBoxHeight + 25;
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.01)';
-    ctx.beginPath();
-    ctx.roundRect(70, voteBoxY, 660, 310, 24);
-    ctx.fill();
-    ctx.stroke();
+    curY = winStartY + WINNER_H + GAP;
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 18px sans-serif';
-    ctx.fillText('📊 Distribusi Suara Rapat', 100, voteBoxY + 45);
-
-    const sortedOptions = [...votingOptions].sort((a, b) => b.votes - a.votes).slice(0, 3);
-    let optionY = voteBoxY + 95;
-
-    sortedOptions.forEach((option, idx) => {
-      const percentage = dbVotes.length > 0 ? Math.round((option.votes / dbVotes.length) * 100) : 0;
-      const cleanOptText = option.text.split(': ').slice(1).join(': ') || option.text;
-      const displayText = `${String.fromCharCode(65 + idx)}. ${cleanOptText.length > 45 ? cleanOptText.slice(0, 45) + '...' : cleanOptText}`;
-      
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '700 14px sans-serif';
-      ctx.fillText(displayText, 100, optionY);
-      
-      ctx.fillStyle = '#8B5CF6';
-      ctx.font = '800 14px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(`${option.votes} vote (${percentage}%)`, 700, optionY);
-      ctx.textAlign = 'left';
-      
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-      ctx.beginPath();
-      ctx.roundRect(100, optionY + 12, 600, 10, 5);
-      ctx.fill();
-      
-      if (percentage > 0) {
-        const fillGrad = ctx.createLinearGradient(100, 0, 100 + (600 * (percentage / 100)), 0);
-        fillGrad.addColorStop(0, '#BEF264');
-        fillGrad.addColorStop(1, '#80AF27');
-        ctx.fillStyle = fillGrad;
-        ctx.beginPath();
-        ctx.roundRect(100, optionY + 12, 600 * (percentage / 100), 10, 5);
-        ctx.fill();
-      }
-      
-      optionY += 65;
-    });
+    // ── 6. Vote distribution ──────────────────────────────────────────────────
+    ctx.fillStyle = ORANGE;
+    ctx.font = '800 10px sans-serif';
+    ctx.fillText('📊  DISTRIBUSI SUARA', PAD, curY);
+    curY += 22;
 
     if (sortedOptions.length === 0) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.font = 'italic 14px sans-serif';
-      ctx.fillText('Tidak ada data voting yang tercatat.', 100, voteBoxY + 110);
+      ctx.fillStyle = MUTED;
+      ctx.font = 'italic 13px sans-serif';
+      ctx.fillText('Tidak ada data voting yang tercatat.', PAD, curY + 20);
+      curY += 60;
+    } else {
+      sortedOptions.forEach((option, idx) => {
+        const pct = dbVotes.length > 0 ? Math.round((option.votes / dbVotes.length) * 100) : 0;
+        const isWin = idx === 0;
+        const cleanTxt = option.text.split(': ').slice(1).join(': ') || option.text;
+        const label = `${String.fromCharCode(65 + idx)}. ${cleanTxt.length > 50 ? cleanTxt.slice(0, 50) + '…' : cleanTxt}`;
+
+        ctx.fillStyle = isWin ? LIME_D : COL;
+        ctx.font = `${isWin ? '800' : '700'} 13px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(label, PAD, curY + 14);
+
+        ctx.font = '700 12px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = isWin ? PURPLE : MUTED;
+        ctx.fillText(`${option.votes} suara (${pct}%)`, CARD_W - PAD, curY + 14);
+        ctx.textAlign = 'left';
+
+        // Track
+        const BAR_Y = curY + 22; const BAR_H = 10;
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.08)';
+        rr(ctx, PAD, BAR_Y, INNER, BAR_H, 5); ctx.fill();
+
+        if (pct > 0) {
+          const grad = ctx.createLinearGradient(PAD, 0, PAD + INNER * (pct / 100), 0);
+          if (isWin) { grad.addColorStop(0, LIME); grad.addColorStop(1, '#a4d64c'); }
+          else        { grad.addColorStop(0, PURPLE); grad.addColorStop(1, '#6d28d9'); }
+          ctx.fillStyle = grad;
+          rr(ctx, PAD, BAR_Y, INNER * (pct / 100), BAR_H, 5); ctx.fill();
+        }
+        curY += 64;
+      });
     }
 
-    // 7. Draw Metadata Section (Stats)
-    const boxStatsY = voteBoxY + 310 + 25;
-    // Box 1
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
-    ctx.beginPath();
-    ctx.roundRect(100, boxStatsY, 280, 50, 12);
-    ctx.fill();
+    curY += GAP;
 
-    ctx.fillStyle = '#8B5CF6';
-    ctx.font = '800 18px sans-serif';
-    ctx.fillText(`${participantCount}`, 125, boxStatsY + 32);
+    // ── 7. Stats strip ────────────────────────────────────────────────────────
+    ctx.fillStyle = 'rgba(139, 92, 246, 0.07)';
+    rr(ctx, PAD, curY, INNER, 52, 14); ctx.fill();
+    ctx.strokeStyle = 'rgba(139, 92, 246, 0.12)'; ctx.lineWidth = 1;
+    rr(ctx, PAD, curY, INNER, 52, 14); ctx.stroke();
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    const COL_W = Math.floor(INNER / 3);
+    [
+      { icon: '👥', value: `${participantCount}`, label: 'Total Peserta' },
+      { icon: '🗳️', value: `${totalV}`,           label: 'Total Suara' },
+      { icon: '📌', value: `${sortedOptions.length}`, label: 'Pilihan Gagasan' },
+    ].forEach((item, i) => {
+      const sx = PAD + i * COL_W + COL_W / 2;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = PURPLE;
+      ctx.font = '800 14px sans-serif';
+      ctx.fillText(`${item.icon} ${item.value}`, sx, curY + 20);
+      ctx.fillStyle = MUTED;
+      ctx.font = '600 10px sans-serif';
+      ctx.fillText(item.label, sx, curY + 36);
+    });
+    ctx.textAlign = 'left';
+    curY += 52 + GAP;
+
+    // ── 8. Footer ─────────────────────────────────────────────────────────────
+    ctx.strokeStyle = 'rgba(223, 192, 180, 0.4)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD, curY); ctx.lineTo(CARD_W - PAD, curY); ctx.stroke();
+    curY += 18;
+
+    ctx.fillStyle = MUTED;
     ctx.font = '600 11px sans-serif';
-    ctx.fillText('Total Peserta', 170, boxStatsY + 30);
+    ctx.textAlign = 'left';
+    ctx.fillText('Rapa — Rapat Anonim · Pendapat Objektif Tanpa Tekanan Sosial', PAD, curY);
 
-    // Box 2
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
-    ctx.beginPath();
-    ctx.roundRect(420, boxStatsY, 280, 50, 12);
-    ctx.fill();
-
-    ctx.fillStyle = '#FF7A3D';
-    ctx.font = '800 14px sans-serif';
-    ctx.fillText(`CODE: ${code}`, 440, boxStatsY + 31);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.font = '600 11px sans-serif';
-    const titleShort = room?.title && room.title.length > 15 ? room.title.slice(0, 15) + '...' : room?.title || 'Rapat';
-    ctx.fillText(titleShort, 570, boxStatsY + 30);
-
-    // 8. Footer
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-    ctx.font = '600 12px sans-serif';
-    ctx.fillText('Rapa - Rapat Anonim · Pendapat Objektif Tanpa Tekanan Sosial', 70, canvasHeight - 55);
-
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-    ctx.font = '600 12px sans-serif';
+    ctx.fillStyle = ORANGE;
+    ctx.font = '700 11px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('rapa.app', 730, canvasHeight - 55);
+    ctx.fillText('rapa.app', CARD_W - PAD, curY);
     ctx.textAlign = 'left';
 
     const dataUrl = canvas.toDataURL('image/png');
