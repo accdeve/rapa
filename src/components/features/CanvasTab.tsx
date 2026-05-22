@@ -507,7 +507,7 @@ export default function CanvasTab({ roomId: propRoomId, myParticipantId, roomSta
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: roomId ? '100%' : 'auto', position: 'relative', paddingBottom: roomId ? '100px' : '0px', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: roomId ? '100%' : 'auto', position: 'relative', paddingBottom: '0px', gap: '16px' }}>
       
       {!roomId && (
         <div style={{

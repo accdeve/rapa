@@ -224,12 +224,7 @@ export default function CreateRoomPage() {
               justifyContent: 'center',
               gap: '8px'
             }}>
-              {roomCode.split('-').map((part, i) => (
-                <React.Fragment key={i}>
-                  <span>{part}</span>
-                  {i === 0 && <span style={{ color: 'var(--outline)', fontWeight: '400' }}>-</span>}
-                </React.Fragment>
-              ))}
+              <span>{roomCode}</span>
             </div>
 
             <div style={{ 

@@ -1373,7 +1373,7 @@ export default function ParticipantSession() {
   const maxChars = 280;
 
   return (
-    <div className="mobile-app-shell">
+    <div className="mobile-app-shell" style={{ height: '100%', maxHeight: '100%', boxShadow: 'none' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes blobFloat {
           0%, 100% { transform: translateY(0) scale(1); }
@@ -1810,7 +1810,7 @@ export default function ParticipantSession() {
         display: 'flex', 
         flexDirection: 'column', 
         overflow: activeTab === 1 ? 'hidden' : 'auto', 
-        padding: activeTab === 1 ? '16px 16px 0 16px' : '20px 20px 120px 20px',
+        padding: activeTab === 1 ? '16px 16px 0 16px' : (activeTab === 2 ? '16px 16px 16px 16px' : '20px 20px 120px 20px'),
         position: 'relative'
       }}>
         
@@ -2445,7 +2445,7 @@ export default function ParticipantSession() {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '20px'
+              marginBottom: '12px'
             }}>
               <span style={{
                 fontSize: '14px',
@@ -2481,9 +2481,9 @@ export default function ParticipantSession() {
             {/* Question reminder */}
             <div style={{
               backgroundColor: '#eaedff',
-              padding: '16px',
+              padding: '12px 16px',
               borderRadius: '16px',
-              marginBottom: '20px'
+              marginBottom: '12px'
             }}>
               <span style={{
                 fontSize: '13px',
@@ -2499,8 +2499,8 @@ export default function ParticipantSession() {
             <div style={{
               position: 'relative',
               width: '100%',
-              height: '370px',
-              margin: '10px 0 15px 0',
+              height: '320px',
+              margin: '6px 0 10px 0',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -2511,7 +2511,7 @@ export default function ParticipantSession() {
               <div style={{
                 position: 'relative',
                 width: '100%',
-                height: '310px',
+                height: '270px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
@@ -2542,11 +2542,11 @@ export default function ParticipantSession() {
                         className={`swipe-card ${selectedOption === option.id ? 'selected' : ''}`}
                         style={{
                           position: 'absolute',
-                          width: '270px',
-                          height: '290px',
+                          width: '250px',
+                          height: '255px',
                           backgroundColor: 'white',
                           borderRadius: '24px',
-                          padding: '24px',
+                          padding: '20px',
                           border: selectedOption === option.id ? '3px solid #BEF264' : '1.5px solid rgba(223, 192, 180, 0.4)',
                           boxShadow: selectedOption === option.id 
                             ? '0 12px 32px rgba(190, 242, 100, 0.3)' 
@@ -2555,7 +2555,7 @@ export default function ParticipantSession() {
                               : '0 4px 12px rgba(0,0,0,0.03)',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: '12px',
+                          gap: '10px',
                           transform: `translateX(${offset * 105}%) scale(${isActive ? 1 : 0.88})`,
                           opacity: isActive ? 1 : 0.4,
                           zIndex: isActive ? 10 : 5 - Math.abs(offset),
@@ -2725,7 +2725,7 @@ export default function ParticipantSession() {
                 <div style={{
                   display: 'flex',
                   gap: '6px',
-                  marginTop: '12px',
+                  marginTop: '6px',
                   zIndex: 20
                 }}>
                   {votingOptions.map((_, index) => (
@@ -2756,7 +2756,7 @@ export default function ParticipantSession() {
               className="btn-orange"
               style={{
                 width: '100%',
-                padding: '16px 20px',
+                padding: '14px 20px',
                 borderRadius: '16px',
                 border: 'none',
                 fontWeight: '700',
@@ -2766,7 +2766,7 @@ export default function ParticipantSession() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
-                marginBottom: '15px'
+                marginBottom: '8px'
               }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
@@ -2798,7 +2798,7 @@ export default function ParticipantSession() {
       </div>
 
       {/* Bottom Navigation spacer to prevent overlay cutoff */}
-      <div style={{ height: '24px' }} />
+      {activeTab !== 1 && activeTab !== 2 && <div style={{ height: '24px' }} />}
 
       {/* SHARE IMAGE MODAL */}
       {shareImageModalOpen && (
