@@ -4,7 +4,7 @@ import StoreProvider from "./StoreProvider";
 import BottomNav from "../components/layout/BottomNav";
 
 export const metadata: Metadata = {
-  title: "VoxSilent | Secure Anonymous Meeting",
+  title: "Rapa | Secure Anonymous Meeting",
   description: "Suarakan Ide Tanpa Tekanan, Ambil Keputusan dengan Pasti.",
 };
 

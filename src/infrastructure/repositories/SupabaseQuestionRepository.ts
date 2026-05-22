@@ -54,10 +54,26 @@ export class SupabaseQuestionRepository implements IQuestionRepository {
       .channel(`questions:${roomId}:${uniqueId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'questions', filter: `room_id=eq.${roomId}` },
-        async () => {
-          const updated = await this.findByRoom(roomId);
-          callback(updated);
+        { event: '*', schema: 'public', table: 'questions' },
+        async (payload) => {
+          const newRoomId = payload.new && 'room_id' in payload.new ? (payload.new as any).room_id : null;
+          const oldRoomId = payload.old && 'room_id' in payload.old ? (payload.old as any).room_id : null;
+          
+          if (!newRoomId && !oldRoomId) {
+            try {
+              const updated = await this.findByRoom(roomId);
+              callback(updated);
+            } catch (err) {
+              console.error("Error in real-time questions sync:", err);
+            }
+          } else if (newRoomId === roomId || oldRoomId === roomId) {
+            try {
+              const updated = await this.findByRoom(roomId);
+              callback(updated);
+            } catch (err) {
+              console.error("Error in real-time questions sync:", err);
+            }
+          }
         }
       )
       .subscribe();

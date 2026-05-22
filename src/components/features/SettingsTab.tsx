@@ -1,14 +1,19 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppSelector, useAppDispatch } from '@/application/hooks';
 import { setGMLoggedIn } from '@/application/store/slices/uiSlice';
 
-function PlanCard({ name, price, features, isCurrent, isDark }: {
-  name: string; price: string; features: string[]; isCurrent?: boolean; isDark?: boolean;
+function PlanCard({ name, price, features, isCurrent, isDark, onUpgrade }: {
+  name: string;
+  price: string;
+  features: string[];
+  isCurrent?: boolean;
+  isDark?: boolean;
+  onUpgrade?: () => void;
 }) {
   return (
     <div style={{
-      minWidth: '200px', padding: '24px', borderRadius: '20px', flexShrink: 0,
+      minWidth: '220px', padding: '24px', borderRadius: '20px', flexShrink: 0,
       backgroundColor: isDark ? 'var(--midnight-navy)' : 'white',
       border: isDark ? 'none' : '1px solid rgba(223,192,180,0.4)',
       boxShadow: isDark ? '0 8px 24px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.04)',
@@ -23,16 +28,88 @@ function PlanCard({ name, price, features, isCurrent, isDark }: {
           </div>
         ))}
       </div>
-      <button style={{
-        width: '100%', padding: '12px', borderRadius: '12px', fontWeight: '800', fontSize: '13.5px',
-        cursor: 'pointer', border: 'none', fontFamily: 'inherit',
-        backgroundColor: isDark ? 'var(--action-orange)' : 'rgba(107,56,212,0.1)',
-        color: isDark ? 'white' : 'var(--secondary)',
-        boxShadow: isDark ? '0 4px 10px rgba(255,122,61,0.2)' : 'none',
-        transition: 'all 0.2s',
-      }}>
-        {isCurrent ? 'Current Plan' : 'Upgrade'}
+      <button 
+        onClick={onUpgrade}
+        style={{
+          width: '100%', padding: '12px', borderRadius: '12px', fontWeight: '800', fontSize: '13.5px',
+          cursor: isCurrent ? 'default' : 'pointer', border: 'none', fontFamily: 'inherit',
+          backgroundColor: isCurrent ? (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : (isDark ? 'var(--action-orange)' : 'rgba(107,56,212,0.1)'),
+          color: isCurrent ? (isDark ? 'rgba(255,255,255,0.5)' : 'var(--outline)') : (isDark ? 'white' : 'var(--secondary)'),
+          boxShadow: (!isCurrent && isDark) ? '0 4px 10px rgba(255,122,61,0.2)' : 'none',
+          transition: 'all 0.2s',
+        }}
+        disabled={isCurrent}
+      >
+        {isCurrent ? 'Aktif saat ini' : 'Upgrade'}
       </button>
+    </div>
+  );
+}
+
+function PricingSection({ 
+  isGMLoggedIn, 
+  onUpgradeToGM 
+}: { 
+  isGMLoggedIn: boolean; 
+  onUpgradeToGM: () => void; 
+}) {
+  const gmPlans = [
+    {
+      name: "Free GM",
+      price: "Rp 0",
+      features: [
+        "Maks 10 peserta/ruang",
+        "Pengelompokan manual",
+        "Rapat basic standar",
+        "Riwayat rapat 7 hari"
+      ],
+      isCurrent: isGMLoggedIn
+    },
+    {
+      name: "Professional GM",
+      price: "Rp 299k/bln",
+      features: [
+        "Maks 50 peserta/ruang",
+        "Pengelompokan ide otomatis",
+        "Pembuatan ruang unlimited",
+        "Sertifikat otomatis",
+        "Ekspor PDF / CSV"
+      ],
+      isCurrent: false,
+      isDark: true
+    }
+  ];
+
+  return (
+    <div style={{ marginTop: '28px', animation: 'fadeIn 0.5s ease-out' }}>
+      <h3 style={{ fontWeight: '800', fontSize: '18px', marginBottom: '14px', fontFamily: 'Outfit, sans-serif', color: '#131b2e' }}>
+        Daftar Harga & Paket Rapa (Game Master)
+      </h3>
+
+      {/* Horizontal scrolling plan list */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '16px', 
+        overflowX: 'auto', 
+        paddingBottom: '12px', 
+        scrollbarWidth: 'none',
+        msOverflowStyle: 'none'
+      }}>
+        {gmPlans.map((p, idx) => (
+          <PlanCard
+            key={idx}
+            name={p.name}
+            price={p.price}
+            features={p.features}
+            isCurrent={p.isCurrent}
+            isDark={p.isDark}
+            onUpgrade={() => {
+              if (p.isCurrent) return;
+              onUpgradeToGM();
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -169,6 +246,12 @@ export default function SettingsTab() {
             Aktifkan Portal Game Master
           </button>
         </div>
+
+        {/* Pricing & Subscription Plans */}
+        <PricingSection 
+          isGMLoggedIn={false} 
+          onUpgradeToGM={() => dispatch(setGMLoggedIn(true))} 
+        />
       </div>
     );
   }
@@ -189,7 +272,7 @@ export default function SettingsTab() {
           <div style={{ position: 'absolute', bottom: 0, right: 0, backgroundColor: 'var(--action-orange)', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}>✏️</div>
         </div>
         <h3 style={{ fontWeight: '800', fontSize: '20px', marginBottom: '4px', letterSpacing: '-0.3px', color: '#131b2e', fontFamily: 'Outfit, sans-serif' }}>Alex Facilitator</h3>
-        <p style={{ color: 'var(--outline)', fontSize: '13px', marginBottom: '16px', fontWeight: '600' }}>alex@voxsilent.com</p>
+        <p style={{ color: 'var(--outline)', fontSize: '13px', marginBottom: '16px', fontWeight: '600' }}>alex@rapa.app</p>
         <button style={{ backgroundColor: 'rgba(107,56,212,0.1)', color: 'var(--secondary)', padding: '10px 24px', borderRadius: '100px', border: 'none', fontWeight: '800', fontSize: '13.5px', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s' }}>
           Edit Profile
         </button>
@@ -210,12 +293,11 @@ export default function SettingsTab() {
         </div>
       </div>
 
-      {/* Subscription Plans */}
-      <h3 style={{ fontWeight: '800', fontSize: '18px', marginBottom: '16px', fontFamily: 'Outfit, sans-serif' }}>Subscription Plans</h3>
-      <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px', scrollbarWidth: 'none' }}>
-        <PlanCard name="Free" price="Rp 0" features={['10 Orang', 'Basic Room', 'Manual Grouping', '7-Day History']} isCurrent />
-        <PlanCard name="Professional" price="Rp 299k/bln" features={['50 Orang', 'Unlimited Room', 'AI Grouping', 'Sertifikat', 'Export PDF']} isDark />
-      </div>
+      {/* Pricing & Subscription Plans */}
+      <PricingSection 
+        isGMLoggedIn={true} 
+        onUpgradeToGM={() => dispatch(setGMLoggedIn(true))} 
+      />
     </div>
   );
 }

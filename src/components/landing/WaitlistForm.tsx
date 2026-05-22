@@ -14,9 +14,9 @@ export default function WaitlistForm() {
     setIsLoading(true);
     
     setTimeout(() => {
-      const waitlist = JSON.parse(localStorage.getItem('voxsilent_waitlist') || '[]');
+      const waitlist = JSON.parse(localStorage.getItem('rapa_waitlist') || '[]');
       waitlist.push({ email, timestamp: new Date().toISOString() });
-      localStorage.setItem('voxsilent_waitlist', JSON.stringify(waitlist));
+      localStorage.setItem('rapa_waitlist', JSON.stringify(waitlist));
       
       setIsLoading(false);
       setIsSubmitted(true);
@@ -41,7 +41,7 @@ export default function WaitlistForm() {
             </div>
             <h2 className="form-title">Jadi yang Pertama Tahu</h2>
             <p className="form-description">
-              Masukkan email Anda untuk mendapatkan akses prioritas ke VoxSilent dan update terbaru.
+              Masukkan email Anda untuk mendapatkan akses prioritas ke Rapa dan update terbaru.
             </p>
             <form onSubmit={handleSubmit} className="form">
               <div className="input-group">
@@ -81,7 +81,7 @@ export default function WaitlistForm() {
             </div>
             <h2 className="success-title">Yeay! Anda berhasil terdaftar</h2>
             <p className="success-description">
-              Kami akan menghubungi Anda di <strong>{email}</strong> ketika VoxSilent siap digunakan.
+              Kami akan menghubungi Anda di <strong>{email}</strong> ketika Rapa siap digunakan.
             </p>
             <button onClick={handleRetry} className="retry-btn">
               Daftar email lain

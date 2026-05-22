@@ -42,7 +42,7 @@ export default function HowItWorks() {
   return (
     <section className="how-it-works">
       <div className="container">
-        <h2 className="section-title">Bagaimana VoxSilent Bekerja</h2>
+        <h2 className="section-title">Bagaimana Rapa Bekerja</h2>
         <p className="section-subtitle">
           Proses yang simpel untuk diskusi yang bermakna
         </p>

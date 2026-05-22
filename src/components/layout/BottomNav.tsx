@@ -53,8 +53,13 @@ export default function BottomNav() {
           <button
             key={index}
             onClick={() => {
-              if (pathname !== '/') {
+              if (index === 0) {
                 router.push('/');
+              } else {
+                const isRoomPage = pathname.startsWith('/room/');
+                if (!isRoomPage && pathname !== '/') {
+                  router.push('/');
+                }
               }
               dispatch(setActiveTab(index));
             }}

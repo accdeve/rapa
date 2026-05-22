@@ -1,5 +1,5 @@
 export type SessionType = 'brainstorming' | 'direct_voting';
-export type RoomStatus = 'waiting' | 'active' | 'voting' | 'finished';
+export type RoomStatus = 'waiting' | 'active' | 'voting' | 'results' | 'finished';
 export type QuestionStatus = 'pending' | 'input' | 'grouping' | 'voting' | 'done';
 export type SessionPhase = 'waiting' | 'input' | 'grouping' | 'voting' | 'results';
 

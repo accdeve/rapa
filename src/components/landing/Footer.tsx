@@ -8,13 +8,22 @@ export default function Footer() {
       <div className="container">
         <div className="footer-brand">
           <div className="logo">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="14" fill="#8B5CF6" />
-              <path d="M10 16c0-3.314 2.686-6 6-6s6 2.686 6 6-2.686 6-6 6" stroke="white" strokeWidth="2" strokeLinecap="round" />
-              <circle cx="12" cy="14" r="1.5" fill="white" />
-              <circle cx="20" cy="14" r="1.5" fill="white" />
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <radialGradient id="clayLogoGradFooter" cx="35%" cy="35%" r="65%">
+                  <stop offset="0%" stopColor="#FFA87D" />
+                  <stop offset="50%" stopColor="#FF7A3D" />
+                  <stop offset="100%" stopColor="#DE4E10" />
+                </radialGradient>
+                <filter id="clayLogoShadowFooter" x="-20%" y="-20%" width="140%" height="140%">
+                  <feDropShadow dx="0.5" dy="1" stdDeviation="1" floodColor="#DE4E10" floodOpacity="0.4" />
+                </filter>
+              </defs>
+              <circle cx="7" cy="14" r="5.2" fill="url(#clayLogoGradFooter)" filter="url(#clayLogoShadowFooter)" />
+              <circle cx="16" cy="9" r="5.2" fill="url(#clayLogoGradFooter)" filter="url(#clayLogoShadowFooter)" />
+              <circle cx="15.5" cy="15.5" r="4.8" fill="url(#clayLogoGradFooter)" filter="url(#clayLogoShadowFooter)" />
             </svg>
-            <span className="logo-text">VoxSilent</span>
+            <span className="logo-text">Rapa</span>
           </div>
           <p className="tagline">Diskusi tanpa tekanan, keputusan dengan pasti.</p>
         </div>
@@ -59,7 +68,7 @@ export default function Footer() {
             </a>
           </div>
           <div className="copyright">
-            © {currentYear} VoxSilent. Semua hak dilindungi.
+            © {currentYear} Rapa. Semua hak dilindungi.
           </div>
         </div>
       </div>

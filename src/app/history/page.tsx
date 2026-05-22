@@ -13,6 +13,22 @@ export default function HistoryPage() {
   const dispatch = useAppDispatch();
   const isGMLoggedIn = useAppSelector((state) => state.ui.isGMLoggedIn);
 
+  const [recentRooms, setRecentRooms] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('recentRoomsParticipant');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            setRecentRooms(parsed);
+          }
+        } catch (e) {}
+      }
+    }
+  }, []);
+
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -54,26 +70,62 @@ export default function HistoryPage() {
   }, [dispatch]);
 
   // Fetch rooms history if user is logged in
+  // Fetch rooms history
   useEffect(() => {
     const fetchHistory = async () => {
-      if (user && view === 'gm') {
+      if (view === 'gm') {
         setIsLoadingHistory(true);
-        try {
-          const roomRepo = new SupabaseRoomRepository();
-          const rooms = await roomRepo.listByGm(user.id);
-          setRoomHistory(rooms);
-        } catch (error) {
-          console.error('Error fetching room history:', error);
-        } finally {
-          setIsLoadingHistory(false);
+        let dbRooms: Room[] = [];
+        if (user) {
+          try {
+            const roomRepo = new SupabaseRoomRepository();
+            dbRooms = await roomRepo.listByGm(user.id);
+          } catch (error) {
+            console.error('Error fetching room history from DB:', error);
+          }
         }
+        
+        // Read local storage rooms
+        let localRooms: Room[] = [];
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('recentRoomsGM');
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (Array.isArray(parsed)) {
+                localRooms = parsed;
+              }
+            } catch (e) {}
+          }
+        }
+
+        // Merge DB and local storage rooms (avoid duplicates by 'id')
+        const mergedMap = new Map<string, Room>();
+        // Add DB rooms first
+        dbRooms.forEach(room => mergedMap.set(room.id, room));
+        // Add local rooms if not already present
+        localRooms.forEach(room => {
+          if (!mergedMap.has(room.id)) {
+            mergedMap.set(room.id, room);
+          }
+        });
+
+        // Convert map back to list and sort by date descending
+        const mergedRooms = Array.from(mergedMap.values()).sort((a, b) => {
+          const dateA = new Date(a.createdAt || '').getTime();
+          const dateB = new Date(b.createdAt || '').getTime();
+          return dateB - dateA;
+        });
+
+        setRoomHistory(mergedRooms);
+        setIsLoadingHistory(false);
       } else {
         setRoomHistory([]);
       }
     };
 
     fetchHistory();
-  }, [user, view]);
+  }, [user, view, isGMLoggedIn]);
 
   const handleGoogleLogin = async () => {
     try {
@@ -151,12 +203,22 @@ export default function HistoryPage() {
         position: 'relative',
         zIndex: 10
       }}>
-        {/* Left: Logo (three interconnected orange dots) + VoxSilent Text */}
+        {/* Left: Logo + Rapa Text */}
         <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="7" cy="14" r="5.2" fill="#FF7A3D" />
-            <circle cx="16" cy="9" r="5.2" fill="#FF7A3D" />
-            <circle cx="15.5" cy="15.5" r="4.8" fill="#FF7A3D" />
+            <defs>
+              <radialGradient id="clayLogoGradHistory" cx="35%" cy="35%" r="65%">
+                <stop offset="0%" stopColor="#FFA87D" />
+                <stop offset="50%" stopColor="#FF7A3D" />
+                <stop offset="100%" stopColor="#DE4E10" />
+              </radialGradient>
+              <filter id="clayLogoShadowHistory" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0.5" dy="1" stdDeviation="1" floodColor="#DE4E10" floodOpacity="0.4" />
+              </filter>
+            </defs>
+            <circle cx="7" cy="14" r="5.2" fill="url(#clayLogoGradHistory)" filter="url(#clayLogoShadowHistory)" />
+            <circle cx="16" cy="9" r="5.2" fill="url(#clayLogoGradHistory)" filter="url(#clayLogoShadowHistory)" />
+            <circle cx="15.5" cy="15.5" r="4.8" fill="url(#clayLogoGradHistory)" filter="url(#clayLogoShadowHistory)" />
           </svg>
           <span style={{ 
             color: '#FF7A3D', 
@@ -165,7 +227,7 @@ export default function HistoryPage() {
             letterSpacing: '-0.5px', 
             fontFamily: 'Outfit, sans-serif'
           }}>
-            VoxSilent
+            Rapa
           </span>
         </Link>
 
@@ -557,22 +619,124 @@ export default function HistoryPage() {
         /* ==================== MARKETING EXPLANATION FOR PARTICIPANTS ==================== */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '32px' }}>
           
-          {/* Main Info Intro Card */}
+          {/* Check if there are recently joined rooms */}
+          {recentRooms.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{
+                  fontSize: '15px',
+                  fontWeight: '800',
+                  color: '#131b2e',
+                  fontFamily: 'Outfit, sans-serif',
+                  letterSpacing: '0.6px',
+                  textTransform: 'uppercase'
+                }}>
+                  Rapat yang Baru Saja Anda Masuki
+                </h4>
+                <button
+                  onClick={() => {
+                    localStorage.removeItem('recentRoomsParticipant');
+                    setRecentRooms([]);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#FF7A3D',
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    fontFamily: 'Lexend, sans-serif',
+                    padding: 0
+                  }}
+                >
+                  Hapus Semua
+                </button>
+              </div>
+
+              {recentRooms.map((room) => (
+                <div key={room.code} className="room-card" style={{
+                  backgroundColor: 'white',
+                  borderRadius: '24px',
+                  padding: '22px',
+                  border: '1.5px solid rgba(139, 92, 246, 0.15)',
+                  boxShadow: '0 4px 16px rgba(107, 56, 212, 0.03)',
+                  position: 'relative'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span style={{
+                      padding: '4px 10px', borderRadius: '100px', fontSize: '10px', fontWeight: '800',
+                      backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                      color: '#10B981',
+                      display: 'flex', alignItems: 'center', gap: '5px',
+                      fontFamily: 'Lexend, sans-serif',
+                      letterSpacing: '0.5px'
+                    }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block' }} />
+                      TERHUBUNG
+                    </span>
+                    <span style={{
+                      fontSize: '12.5px',
+                      color: '#584239',
+                      fontWeight: '600',
+                      fontFamily: 'Inter, sans-serif'
+                    }}>
+                      Kode: <span style={{ fontWeight: '800', color: '#8B5CF6' }}>{room.code}</span>
+                    </span>
+                  </div>
+
+                  <h3 style={{
+                    fontWeight: '800',
+                    fontSize: '19px',
+                    marginBottom: '8px',
+                    letterSpacing: '-0.3px',
+                    color: '#131b2e',
+                    fontFamily: 'Outfit, sans-serif'
+                  }}>{room.title}</h3>
+
+                  <div style={{
+                    fontSize: '13px',
+                    color: '#584239',
+                    marginBottom: '18px',
+                    fontWeight: '600',
+                    fontFamily: 'Inter, sans-serif'
+                  }}>
+                    <span>⏱️ Masuk pada: {new Date(room.joinedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+
+                  <hr style={{ border: 'none', borderTop: '1px solid rgba(223,192,180,0.25)', marginBottom: '16px' }} />
+
+                  <Link href={`/room/${room.code}`} style={{ textDecoration: 'none' }}>
+                    <button className="btn btn-primary btn-purple" style={{ width: '100%', borderRadius: '16px', height: '48px', fontWeight: '800', fontFamily: 'Lexend, sans-serif', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}>
+                      Masuk Kembali →
+                    </button>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Educational onboarding */}
           <div style={{
-            backgroundColor: '#eaedff',
-            borderRadius: '28px',
-            padding: '24px',
-            border: '1.5px solid rgba(139, 92, 246, 0.15)',
-            position: 'relative',
-            overflow: 'hidden'
+            marginTop: recentRooms.length > 0 ? '16px' : '0',
+            borderTop: recentRooms.length > 0 ? '1.5px dashed rgba(223, 192, 180, 0.25)' : 'none',
+            paddingTop: recentRooms.length > 0 ? '24px' : '0'
           }}>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '800',
-              color: '#131b2e',
-              fontFamily: 'Outfit, sans-serif',
-              marginBottom: '8px'
-            }}>VoxSilent untuk Peserta: Suara Anda, Kekuatan Rapat.</h3>
+            <div style={{
+              backgroundColor: '#eaedff',
+              borderRadius: '28px',
+              padding: '24px',
+              border: '1.5px solid rgba(139, 92, 246, 0.15)',
+              position: 'relative',
+              overflow: 'hidden',
+              marginBottom: '20px'
+            }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: '800',
+                color: '#131b2e',
+                fontFamily: 'Outfit, sans-serif',
+                marginBottom: '8px'
+              }}>Rapa untuk Peserta: Suara Anda, Kekuatan Rapat.</h3>
             <p style={{
               fontSize: '13.5px',
               color: '#584239',
@@ -592,7 +756,7 @@ export default function HistoryPage() {
             letterSpacing: '0.6px',
             textTransform: 'uppercase',
             marginTop: '8px'
-          }}>Cara Kerja VoxSilent dalam 3 Langkah:</h4>
+          }}>Cara Kerja Rapa dalam 3 Langkah:</h4>
 
           {/* Steps Carousel / Rows */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -751,7 +915,8 @@ export default function HistoryPage() {
           </div>
 
         </div>
-      )}
+      </div>
+    )}
 
       {/* LOGIN MODAL - Mirrors HomeTab exactly */}
       {showLoginModal && (

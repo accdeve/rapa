@@ -65,12 +65,12 @@ export default function VotingResultsPage() {
   };
 
   const handleShareWhatsApp = () => {
-    const text = `🗳️ VoxSilent Meeting Results 🏆\n\n📊 Winning Decisions:\n${mockWinningOptions.map((opt, i) => `${i + 1}. ${opt.text} (${opt.percentage}%)`).join('\n')}\n\n👑 The Silent Hero MVP Score: ${mockMVP.contributionScore}\n\n/shared via VoxSilent`;
+    const text = `🗳️ Rapa Meeting Results 🏆\n\n📊 Winning Decisions:\n${mockWinningOptions.map((opt, i) => `${i + 1}. ${opt.text} (${opt.percentage}%)`).join('\n')}\n\n👑 The Silent Hero MVP Score: ${mockMVP.contributionScore}\n\n/shared via Rapa`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleCopyAll = async () => {
-    const text = `🗳️ VoxSilent Meeting Results 🏆\n\n📊 Winning Decisions:\n${mockWinningOptions.map((opt, i) => `${i + 1}. ${opt.text} (${opt.percentage}%)`).join('\n')}\n\n📋 Key Decisions:\n${mockDecisions.map((d, i) => `${i + 1}. [${d.category}] ${d.text}`).join('\n')}\n\n👑 MVP Score: ${mockMVP.contributionScore}\n👥 Total Participants: ${totalParticipants}\n\n/shared via VoxSilent`;
+    const text = `🗳️ Rapa Meeting Results 🏆\n\n📊 Winning Decisions:\n${mockWinningOptions.map((opt, i) => `${i + 1}. ${opt.text} (${opt.percentage}%)`).join('\n')}\n\n📋 Key Decisions:\n${mockDecisions.map((d, i) => `${i + 1}. [${d.category}] ${d.text}`).join('\n')}\n\n👑 MVP Score: ${mockMVP.contributionScore}\n👥 Total Participants: ${totalParticipants}\n\n/shared via Rapa`;
     try {
       await navigator.clipboard.writeText(text);
       setCopiedId('all');

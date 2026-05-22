@@ -73,7 +73,7 @@ export default function ROICalculator() {
           </div>
 
           <div className="result-card">
-            <div className="result-label">VoxSilent menghemat</div>
+            <div className="result-label">Rapa menghemat</div>
             <div className="result-value">
               <span className="currency">Rp</span>
               <span className="amount">{formatCurrency(savings)}</span>
@@ -89,7 +89,7 @@ export default function ROICalculator() {
               <span className="breakdown-value">Rp {formatCurrency(participants * 250000 * duration)}</span>
             </div>
             <div className="breakdown-item highlight">
-              <span className="breakdown-label">Dengan VoxSilent (-50%)</span>
+              <span className="breakdown-label">Dengan Rapa (-50%)</span>
               <span className="breakdown-value">Rp {formatCurrency(savings)}</span>
             </div>
           </div>

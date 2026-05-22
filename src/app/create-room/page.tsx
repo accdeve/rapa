@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import SubPageShell from '../../components/layout/SubPageShell';
 import { SupabaseRoomRepository } from '@/infrastructure/repositories/SupabaseRoomRepository';
+import { LocalHistoryRepository } from '@/infrastructure/repositories/LocalHistoryRepository';
 import { generateRoomCode } from '@/utils/codeGenerator';
 import { supabase } from '@/infrastructure/supabase/supabaseClient';
 
@@ -57,10 +58,31 @@ export default function CreateRoomPage() {
     }
   ]);
 
+  const roomLink = typeof window !== 'undefined' ? `${window.location.origin}/room/${roomCode}` : `https://rapa.app/room/${roomCode}`;
+
   const handleCopy = () => {
-    navigator.clipboard.writeText(`https://voxsilent.app/room/${roomCode}`);
+    const textToCopy = `Undangan Rapat Anonim di Rapa 🚀\n\nRapat Pembahasan: ${roomName.trim() || 'Rapat Curah Pendapat'}\nBatas Anggota: Sebanyak ${participants} peserta\nDurasi Sesi: ${duration} menit\n\nGabung di sini:\n${roomLink}`;
+    navigator.clipboard.writeText(textToCopy);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    const textToShare = `Undangan Rapat Anonim di Rapa 🚀\n\nRapat Pembahasan: ${roomName.trim() || 'Rapat Curah Pendapat'}\nBatas Anggota: Sebanyak ${participants} peserta\nDurasi Sesi: ${duration} menit\n\nGabung di sini:\n${roomLink}`;
+    if (typeof window !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Undangan Rapat Rapa',
+          text: textToShare,
+          url: roomLink
+        });
+      } catch (err) {
+        console.log('Error sharing:', err);
+      }
+    } else {
+      navigator.clipboard.writeText(textToShare);
+      alert('Tautan undangan disalin ke papan klip!');
+    }
   };
 
   const handleAddNewQuestion = () => {
@@ -211,40 +233,28 @@ export default function CreateRoomPage() {
             </div>
 
             <div style={{ 
-              width: '160px', 
-              height: '160px', 
+              width: '180px', 
+              height: '180px', 
               margin: '0 auto 24px auto', 
-              backgroundColor: 'rgba(139, 92, 246, 0.06)', 
-              borderRadius: '20px', 
-              border: '2px dashed rgba(139, 92, 246, 0.25)', 
+              backgroundColor: 'white', 
+              borderRadius: '24px', 
+              border: '1px solid rgba(0, 0, 0, 0.08)', 
               display: 'flex', 
               alignItems: 'center', 
               justifyContent: 'center', 
-              flexDirection: 'column', 
-              gap: '8px'
+              boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+              padding: '12px',
+              boxSizing: 'border-box'
             }}>
-              <div style={{ 
-                width: '80px', 
-                height: '80px', 
-                backgroundColor: 'var(--anon-purple)',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5">
-                  <rect x="3" y="3" width="7" height="7" rx="1"/>
-                  <rect x="14" y="3" width="7" height="7" rx="1"/>
-                  <rect x="3" y="14" width="7" height="7" rx="1"/>
-                  <rect x="14" y="14" width="7" height="7" rx="1"/>
-                </svg>
-              </div>
-              <span style={{ 
-                fontFamily: 'var(--font-lexend)',
-                fontSize: '11px', 
-                color: 'var(--anon-purple)', 
-                fontWeight: '800' 
-              }}>QR Code</span>
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=1C1C1E&data=${encodeURIComponent(roomLink)}`} 
+                alt="QR Code Rapat" 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  objectFit: 'contain'
+                }} 
+              />
             </div>
 
             <h4 style={{ 
@@ -351,22 +361,25 @@ export default function CreateRoomPage() {
             marginTop: '12px',
             width: '100%'
           }}>
-            <button style={{
-              flex: 1,
-              height: '48px',
-              borderRadius: '14px',
-              backgroundColor: 'var(--anon-purple)',
-              border: 'none',
-              color: 'white',
-              fontFamily: 'var(--font-lexend)',
-              fontWeight: '700',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px'
-            }}>
+            <button 
+              onClick={handleShare}
+              style={{
+                flex: 1,
+                height: '48px',
+                borderRadius: '14px',
+                backgroundColor: 'var(--anon-purple)',
+                border: 'none',
+                color: 'white',
+                fontFamily: 'var(--font-lexend)',
+                fontWeight: '700',
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px'
+              }}
+            >
               <ShareIcon />
               Share
             </button>
@@ -1092,6 +1105,10 @@ export default function CreateRoomPage() {
               sessionType,
               maxParticipants: participants,
             });
+
+            // Push created room to GM localStorage history for offline/demo persistence
+            const localHistRepo = new LocalHistoryRepository();
+            localHistRepo.saveOrUpdateGMRoom(createdRoom);
 
             if (sessionType === 'direct_voting') {
               for (const q of questions) {

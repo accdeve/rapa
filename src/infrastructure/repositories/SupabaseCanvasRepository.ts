@@ -79,19 +79,49 @@ export class SupabaseCanvasRepository implements ICanvasRepository {
 
   subscribeToCanvas(roomId: string, callback: (items: CanvasItem[]) => void): () => void {
     const uniqueId = Math.random().toString(36).substring(2, 10);
+    console.log(`[Canvas Realtime] Initiating subscription channel for room: ${roomId}`);
     const channel = supabase
       .channel(`canvas:${roomId}:${uniqueId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'canvas_items', filter: `room_id=eq.${roomId}` },
-        async () => {
-          const updated = await this.getItems(roomId);
-          callback(updated);
+        { event: '*', schema: 'public', table: 'canvas_items' },
+        async (payload) => {
+          console.log(`[Canvas Realtime] Received database event:`, payload.eventType, payload);
+          const newRoomId = payload.new && 'room_id' in payload.new ? (payload.new as any).room_id : null;
+          const oldRoomId = payload.old && 'room_id' in payload.old ? (payload.old as any).room_id : null;
+          
+          if (!newRoomId && !oldRoomId) {
+            // Replica identity default on delete: fetch to stay completely in sync
+            try {
+              const updated = await this.getItems(roomId);
+              callback(updated);
+            } catch (err) {
+              console.error("[Canvas Realtime] Error fetching on replica sync:", err);
+            }
+          } else if (newRoomId === roomId || oldRoomId === roomId) {
+            try {
+              const updated = await this.getItems(roomId);
+              callback(updated);
+            } catch (err) {
+              console.error("[Canvas Realtime] Error fetching on change sync:", err);
+            }
+          }
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log(`[Canvas Realtime] Subscription status for room ${roomId}:`, status);
+        if (err) {
+          console.error(`[Canvas Realtime] Subscription error:`, err);
+        }
+        if (status === 'SUBSCRIBED') {
+          console.log(`[Canvas Realtime] Successfully listening to public.canvas_items for room: ${roomId}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.warn(`[Canvas Realtime] Subscription received CHANNEL_ERROR. Make sure Realtime is enabled in your Supabase Dashboard for public.canvas_items table!`);
+        }
+      });
 
     return () => {
+      console.log(`[Canvas Realtime] Removing subscription channel for room: ${roomId}`);
       supabase.removeChannel(channel);
     };
   }

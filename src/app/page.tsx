@@ -30,10 +30,10 @@ export default function Home() {
           <HomeTab />
         </div>
         <div style={{ display: activeTab === 1 ? 'block' : 'none', height: '100%' }}>
-          <CanvasTab />
+          <CanvasTab isActive={activeTab === 1} />
         </div>
         <div style={{ display: activeTab === 2 ? 'block' : 'none', height: '100%' }}>
-          <VoteTab />
+          <VoteTab isActive={activeTab === 2} />
         </div>
         <div style={{ display: activeTab === 3 ? 'block' : 'none', height: '100%' }}>
           <SettingsTab />
